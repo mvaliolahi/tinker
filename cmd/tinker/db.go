@@ -48,9 +48,9 @@ func printDBInfo(s *db.Session) {
 	fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Database"))
 	fmt.Println(ui.KeyValue("type", s.Type))
 	fmt.Println(ui.KeyValue("driver", s.Driver))
+	fmt.Println(ui.KeyValue("cli", s.CLI()))
 	fmt.Println()
-	fmt.Println(ui.Dim("  \\d [table]  describe · \\dt  list tables · \\q  quit · Ctrl+C  cancel"))
-	fmt.Println(ui.Dim("  Note: use \\d not .schema, \\dt not .tables (usql, not sqlite3)"))
+	fmt.Println(ui.Dim("  Type \\q or Ctrl+D to quit · Ctrl+C to cancel input"))
 	fmt.Println()
 }
 
