@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/mvaliolahi/tinker/internal/config"
+	"github.com/mvaliolahi/tinker/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +24,7 @@ func main() {
 	root.AddCommand(initCmd(), dbCmd(), apiCmd(), grpcCmd(), runCmd(), makeCmd(), updateCmd(), depsCmd(), versionCmd())
 
 	if err := root.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintln(os.Stderr, ui.Error(err.Error()))
 		os.Exit(1)
 	}
 }
@@ -67,6 +68,8 @@ func versionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print version",
-		Run:   func(_ *cobra.Command, _ []string) { fmt.Println("tinker v0.6.0") },
+		Run: func(_ *cobra.Command, _ []string) {
+			fmt.Println(ui.Banner("0.7.0"))
+		},
 	}
 }

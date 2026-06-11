@@ -8,6 +8,7 @@ import (
 	"github.com/mvaliolahi/tinker/internal/contract"
 	"github.com/mvaliolahi/tinker/internal/deps"
 	"github.com/mvaliolahi/tinker/internal/detect"
+	"github.com/mvaliolahi/tinker/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -22,27 +23,36 @@ func initCmd() *cobra.Command {
 			}
 
 			if _, err := os.Stat(filepath.Join(dir, "tinker.toml")); err == nil {
-				fmt.Fprintf(os.Stderr, "tinker.toml already exists — remove it to regenerate\n")
+				fmt.Fprintln(os.Stderr, ui.Warning("tinker.toml already exists — remove it to regenerate"))
 				return nil
 			}
 
-			fmt.Printf("Scanning %s...\n", dir)
+			fmt.Println(ui.Banner("0.7.0"))
+			fmt.Println()
+
+			fmt.Println(ui.Header("  Scanning project..."))
+			fmt.Println(ui.Dim("  " + dir))
 			printEnvScan(dir)
 
 			result := detect.New(dir).Detect()
 			printDetection(result)
 
 			if result.Database == nil && result.API == nil && result.GRPC == nil {
-				fmt.Println("\nNothing detected. Create tinker.toml manually — see docs for examples.")
+				fmt.Println()
+				fmt.Println(ui.Warning("Nothing detected."))
+				fmt.Println(ui.Dim("  Create tinker.toml manually — see docs for examples."))
 				return nil
 			}
 
 			if err := contract.Generate(result, dir); err != nil {
 				return err
 			}
-			fmt.Println("\nGenerated tinker.toml — review and adjust as needed.")
 
-			fmt.Println("\nInstalling dependencies...")
+			fmt.Println()
+			fmt.Println(ui.Success("Generated tinker.toml"))
+			fmt.Println(ui.Dim("  Review and adjust as needed."))
+
+			fmt.Println(ui.Section("Installing Dependencies"))
 			var failed int
 			if result.Database != nil {
 				failed += len(deps.InstallForPurpose("database"))
@@ -55,11 +65,17 @@ func initCmd() *cobra.Command {
 			}
 
 			if failed > 0 {
-				fmt.Println("\nSome dependencies failed to install.")
-				fmt.Println("Run 'tinker deps install' to retry, or install manually with:")
-				fmt.Println("  GOPROXY=direct go install <module>@latest")
+				fmt.Println()
+				fmt.Println(ui.Warning("Some dependencies failed to install."))
+				fmt.Println(ui.Dim("  Run 'tinker deps install' to retry"))
+				fmt.Println(ui.Dim("  Or: GOPROXY=direct go install <module>@latest"))
+			} else {
+				fmt.Println()
+				fmt.Println(ui.Success("All dependencies installed."))
 			}
 
+			fmt.Println()
+			fmt.Println(ui.Dim("  Run 'tinker db' to connect to your database."))
 			return nil
 		},
 	}
@@ -68,19 +84,32 @@ func initCmd() *cobra.Command {
 func printEnvScan(dir string) {
 	for _, name := range []string{".env", ".env.example", ".env.local"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
-			fmt.Printf("  found %s\n", name)
+			fmt.Println(ui.Bullet("found", name))
 		}
 	}
 }
 
 func printDetection(r *detect.Result) {
 	if r.Database != nil {
-		fmt.Printf("  [database] type=%s source=%s\n", r.Database.Type, r.Database.Source)
+		fmt.Println()
+		fmt.Println("  " + ui.DBLabel() + " " + ui.Header("Database"))
+		fmt.Println(ui.KeyValue("  type", r.Database.Type))
+		fmt.Println(ui.KeyValue("  source", r.Database.Source))
 	}
 	if r.API != nil {
-		fmt.Printf("  [api] base_url=%s spec=%s\n", r.API.BaseURL, r.API.Spec)
+		fmt.Println()
+		fmt.Println("  " + ui.APILabel() + " " + ui.Header("API"))
+		fmt.Println(ui.KeyValue("  base_url", r.API.BaseURL))
+		if r.API.Spec != "" {
+			fmt.Println(ui.KeyValue("  spec", r.API.Spec))
+		}
 	}
 	if r.GRPC != nil {
-		fmt.Printf("  [grpc] addr=%s proto_dir=%s\n", r.GRPC.Addr, r.GRPC.ProtoDir)
+		fmt.Println()
+		fmt.Println("  " + ui.GRPCLabel() + " " + ui.Header("gRPC"))
+		fmt.Println(ui.KeyValue("  addr", r.GRPC.Addr))
+		if r.GRPC.ProtoDir != "" {
+			fmt.Println(ui.KeyValue("  proto_dir", r.GRPC.ProtoDir))
+		}
 	}
 }

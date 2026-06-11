@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	tmaker "github.com/mvaliolahi/tinker/internal/make"
+	"github.com/mvaliolahi/tinker/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +21,7 @@ func makeCmd() *cobra.Command {
 			if !tmaker.HasMakefile(dir) {
 				return fmt.Errorf("no Makefile found in %s", dir)
 			}
+			fmt.Println("  " + ui.MakeLabel() + " " + ui.Bold("make "+args[0]))
 			return tmaker.Run(dir, args[0], args[1:])
 		},
 	}
@@ -41,8 +43,10 @@ func makeListCmd() *cobra.Command {
 			if !tmaker.HasMakefile(dir) {
 				return fmt.Errorf("no Makefile found in %s", dir)
 			}
+			fmt.Println("  " + ui.MakeLabel() + " " + ui.Header("Targets"))
+			fmt.Println()
 			for _, t := range tmaker.Targets(dir) {
-				fmt.Println(t)
+				fmt.Println(ui.Bullet("target", t))
 			}
 			return nil
 		},

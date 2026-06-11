@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mvaliolahi/tinker/internal/deps"
+	"github.com/mvaliolahi/tinker/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -23,12 +24,10 @@ func depsListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List dependency status",
 		RunE: func(_ *cobra.Command, _ []string) error {
+			fmt.Println(ui.Header("  Dependencies"))
+			fmt.Println()
 			for _, dep := range deps.All() {
-				status := "✗ missing"
-				if deps.IsInstalled(dep.Name) {
-					status = "✓ installed"
-				}
-				fmt.Printf("  %-10s %s  (%s)\n", dep.Name, status, dep.Purpose)
+				fmt.Println(ui.DepStatus(dep.Name, deps.IsInstalled(dep.Name), dep.Purpose))
 			}
 			return nil
 		},
@@ -40,11 +39,16 @@ func depsInstallCmd() *cobra.Command {
 		Use:   "install",
 		Short: "Install missing dependencies",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			fmt.Println("Installing dependencies...")
+			fmt.Println(ui.Section("Installing Dependencies"))
+			fmt.Println()
 			failed := deps.InstallAll()
 			if len(failed) > 0 {
-				fmt.Printf("\nFailed: %s — try with GOPROXY=direct:\n", deps.FormatList(failed))
-				fmt.Println("  GOPROXY=direct go install <module>@latest")
+				fmt.Println()
+				fmt.Println(ui.Warning("Failed: " + deps.FormatList(failed)))
+				fmt.Println(ui.Dim("  Try: GOPROXY=direct go install <module>@latest"))
+			} else {
+				fmt.Println()
+				fmt.Println(ui.Success("All dependencies installed."))
 			}
 			return nil
 		},

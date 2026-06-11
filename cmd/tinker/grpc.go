@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mvaliolahi/tinker/internal/grpc"
+	"github.com/mvaliolahi/tinker/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -24,6 +25,7 @@ func grpcCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
+		fmt.Println("  " + ui.GRPCLabel() + " " + ui.Header("Interactive session"))
 		return s.Interactive()
 	}
 
@@ -47,6 +49,7 @@ func grpcListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			fmt.Println("  " + ui.GRPCLabel() + " " + ui.Header("Services"))
 			out, err := s.ListServices()
 			fmt.Print(out)
 			return err
@@ -64,6 +67,7 @@ func grpcDescribeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			fmt.Println("  " + ui.GRPCLabel() + " " + ui.Header("Describe "+args[0]))
 			out, err := s.Describe(args[0])
 			fmt.Print(out)
 			return err
@@ -85,6 +89,7 @@ func grpcCallCmd() *cobra.Command {
 			if len(args) > 1 {
 				data = args[1]
 			}
+			fmt.Println("  " + ui.GRPCLabel() + " " + ui.Header("Call "+args[0]))
 			out, err := s.Call(args[0], data)
 			fmt.Print(out)
 			return err

@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/mvaliolahi/tinker/internal/ui"
 )
 
 type Dep struct {
@@ -41,20 +43,20 @@ func IsInstalled(name string) bool {
 
 func Install(dep Dep) error {
 	if IsInstalled(dep.Name) {
-		fmt.Printf("  %-10s ✓ already installed\n", dep.Name)
+		fmt.Printf("  %-10s %s\n", dep.Name, ui.Success("installed"))
 		return nil
 	}
 
-	fmt.Printf("  %-10s installing...\n", dep.Name)
+	fmt.Printf("  %-10s %s\n", dep.Name, ui.Accent("installing..."))
 
 	if err := goInstall(dep.Module, false); err != nil {
-		fmt.Printf("  %-10s proxy failed, retrying with GOPROXY=direct...\n", dep.Name)
+		fmt.Printf("  %-10s %s\n", dep.Name, ui.Warning("proxy failed, retrying direct..."))
 		if err2 := goInstall(dep.Module, true); err2 != nil {
 			return fmt.Errorf("install %s: run manually: go install %s", dep.Name, dep.Module)
 		}
 	}
 
-	fmt.Printf("  %-10s ✓ installed\n", dep.Name)
+	fmt.Printf("  %-10s %s\n", dep.Name, ui.Success("installed"))
 	return nil
 }
 
@@ -72,7 +74,7 @@ func goInstall(module string, direct bool) error {
 func InstallForPurpose(purpose string) (failed []Dep) {
 	for _, dep := range ForPurpose(purpose) {
 		if err := Install(dep); err != nil {
-			fmt.Printf("  %-10s ✗ %s\n", dep.Name, err)
+			fmt.Printf("  %-10s %s\n", dep.Name, ui.Error(err.Error()))
 			failed = append(failed, dep)
 		}
 	}
@@ -82,7 +84,7 @@ func InstallForPurpose(purpose string) (failed []Dep) {
 func InstallAll() (failed []Dep) {
 	for _, dep := range All() {
 		if err := Install(dep); err != nil {
-			fmt.Printf("  %-10s ✗ %s\n", dep.Name, err)
+			fmt.Printf("  %-10s %s\n", dep.Name, ui.Error(err.Error()))
 			failed = append(failed, dep)
 		}
 	}

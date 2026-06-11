@@ -219,11 +219,13 @@ You don't need all of them — only install the tools for the features you use.
 - **Contract is declarative** — `tinker.toml`, not a Go interface
 - **Auto-detect first, configure second** — `tinker init` should work for 80% of cases
 - **Cross-language by default** — Works with any project that has a `.env` and `tinker.toml`
+- **Beautiful terminal UI** — Styled output with [lipgloss](https://github.com/charmbracelet/lipgloss), colored badges, and clear visual hierarchy
 
 ## Comparison
 
 | Feature | Laravel Tinker | gore | Tinker (this project) |
 |---------|---------------|------|----------------------|
+| Styled TUI | ❌ | ❌ | ✅ lipgloss |
 | Interactive DB session | ✅ Eloquent | ❌ | ✅ usql (raw SQL) |
 | Call API endpoints | ✅ HTTP client | ❌ | ✅ httpie/curlie |
 | Call gRPC services | ❌ | ❌ | ✅ evans/grpcurl |

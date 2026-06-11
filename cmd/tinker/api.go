@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mvaliolahi/tinker/internal/api"
+	"github.com/mvaliolahi/tinker/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -21,6 +22,7 @@ func apiCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			fmt.Println("  " + ui.APILabel() + " " + ui.Header("Interactive session"))
 			return s.Interactive()
 		},
 	})
@@ -32,10 +34,12 @@ func apiCmd() *cobra.Command {
 		}
 
 		if len(args) == 0 {
+			fmt.Println("  " + ui.APILabel() + " " + ui.Header("Interactive session"))
 			return s.Interactive()
 		}
 
 		method, path, body := parseAPICall(args)
+		fmt.Println("  " + ui.APILabel() + " " + ui.Bold(method+" "+path))
 		out, err := s.Request(method, path, body, nil)
 		fmt.Print(out)
 		return err
@@ -58,8 +62,6 @@ func parseAPICall(args []string) (method, path, body string) {
 		return "GET", args[0], ""
 	case 2:
 		return args[0], args[1], ""
-	case 3:
-		return args[0], args[1], args[2]
 	default:
 		return args[0], args[1], args[2]
 	}

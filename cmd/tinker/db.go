@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mvaliolahi/tinker/internal/db"
+	"github.com/mvaliolahi/tinker/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +28,7 @@ func dbCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Connecting to %s...\n", s.Type)
+		fmt.Println("  " + ui.DBLabel() + " " + ui.Header("Connecting to "+s.Type+"..."))
 		return s.Connect()
 	}
 
@@ -51,7 +52,7 @@ func dbConnectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Connecting to %s...\n", s.Type)
+			fmt.Println("  " + ui.DBLabel() + " " + ui.Header("Connecting to "+s.Type+"..."))
 			return s.Connect()
 		},
 	}

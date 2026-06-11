@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mvaliolahi/tinker/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -23,17 +24,20 @@ func updateCmd() *cobra.Command {
 				return fmt.Errorf("go not found — required for self-update")
 			}
 
+			fmt.Println(ui.Header("  Checking for updates..."))
+
 			tag, err := latestTag()
 			if err != nil {
-				fmt.Printf("Could not fetch latest version: %v\n", err)
-				fmt.Println("Falling back to @latest...")
+				fmt.Println(ui.Warning("Could not fetch latest version: " + err.Error()))
+				fmt.Println(ui.Dim("  Falling back to @latest..."))
 				tag = "latest"
 			} else {
-				fmt.Printf("Latest version: %s\n", tag)
+				fmt.Println(ui.Bullet("latest", tag))
 			}
 
 			pkg := fmt.Sprintf("github.com/%s/cmd/tinker@%s", repo, tag)
-			fmt.Printf("Installing %s...\n", pkg)
+			fmt.Println()
+			fmt.Println(ui.Accent("  Installing " + pkg + "..."))
 
 			cmd := exec.Command("go", "install", pkg)
 			cmd.Env = append(os.Environ(), "GOFLAGS=")
@@ -43,19 +47,18 @@ func updateCmd() *cobra.Command {
 				return fmt.Errorf("update failed: %w", err)
 			}
 
-			fmt.Println("Updated successfully!")
+			fmt.Println()
+			fmt.Println(ui.Success("Updated successfully!"))
 			return nil
 		},
 	}
 }
 
 func latestTag() (string, error) {
-	// Try git ls-remote first — no API rate limits
 	if tag, err := gitLatestTag(); err == nil {
 		return tag, nil
 	}
 
-	// Fallback to GitHub API
 	client := &http.Client{Timeout: 5 * time.Second}
 
 	if tag, err := fetchLatestRelease(client); err == nil {
