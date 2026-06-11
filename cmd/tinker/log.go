@@ -233,6 +233,14 @@ func manualTail(path string) error {
         }
         defer f.Close()
 
+        // Show the last N lines first (like tail -f does), then follow for new lines
+        const tailLines = 20
+        lines := readLastLines(f, tailLines)
+        for _, line := range lines {
+                fmt.Println(formatLogLine(line))
+        }
+
+        // Now seek to end and follow
         if _, err := f.Seek(0, io.SeekEnd); err != nil {
                 return err
         }
@@ -249,6 +257,38 @@ func manualTail(path string) error {
                 }
                 fmt.Println(formatLogLine(strings.TrimRight(line, "\n")))
         }
+}
+
+// readLastLines reads the last N lines from a file without loading the entire file.
+func readLastLines(f *os.File, n int) []string {
+        info, err := f.Stat()
+        if err != nil {
+                return nil
+        }
+        size := info.Size()
+        if size == 0 {
+                return nil
+        }
+
+        // Read the last 8KB chunk (enough for ~20 log lines)
+        const chunkSize = 8192
+        off := size - chunkSize
+        if off < 0 {
+                off = 0
+        }
+
+        buf := make([]byte, size-off)
+        if _, err := f.ReadAt(buf, off); err != nil {
+                return nil
+        }
+
+        // Split into lines and take the last N
+        allLines := strings.Split(strings.TrimRight(string(buf), "\n"), "\n")
+        if len(allLines) > n {
+                allLines = allLines[len(allLines)-n:]
+        }
+
+        return allLines
 }
 
 // formatLogLine detects JSON log lines and formats them, falls back to text colorization.
