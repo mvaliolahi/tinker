@@ -23,8 +23,13 @@ func NewSession(cfg *config.API) (*Session, error) {
 		return nil, fmt.Errorf("api base_url is empty")
 	}
 
+	base := strings.TrimRight(cfg.ResolvedBaseURL, "/")
+	if !strings.HasPrefix(base, "http://") && !strings.HasPrefix(base, "https://") {
+		base = "http://" + base
+	}
+
 	return &Session{
-		BaseURL:  strings.TrimRight(cfg.ResolvedBaseURL, "/"),
+		BaseURL:  base,
 		Auth:     cfg.ResolvedAuth,
 		AuthType: cfg.AuthType,
 		Headers:  cfg.Headers,
