@@ -20,7 +20,7 @@ func main() {
 
 	root.PersistentFlags().StringVarP(&projectDir, "project", "p", "", "project directory")
 
-	root.AddCommand(initCmd(), dbCmd(), apiCmd(), grpcCmd(), runCmd(), versionCmd())
+	root.AddCommand(initCmd(), dbCmd(), apiCmd(), grpcCmd(), runCmd(), updateCmd(), versionCmd())
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
