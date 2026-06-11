@@ -33,14 +33,24 @@ func isPortOnly(s string) bool {
 }
 
 type Session struct {
-	BaseURL  string
-	Auth     string
-	AuthType string
-	Headers  map[string]string
-	Spec     string
+	BaseURL   string
+	Auth      string
+	AuthType  string
+	Headers   map[string]string
+	Spec      string
+	jqFilter  string // optional jq filter for response formatting
 }
 
-func NewSession(cfg *config.API) (*Session, error) {
+type SessionOption func(*Session)
+
+// WithJqFilter sets a jq filter for the session.
+func WithJqFilter(filter string) SessionOption {
+	return func(s *Session) {
+		s.jqFilter = filter
+	}
+}
+
+func NewSession(cfg *config.API, opts ...SessionOption) (*Session, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("no [api] section in tinker.toml")
 	}
@@ -48,13 +58,19 @@ func NewSession(cfg *config.API) (*Session, error) {
 		return nil, fmt.Errorf("api base_url is empty")
 	}
 
-	return &Session{
+	s := &Session{
 		BaseURL:  normalizeBaseURL(cfg.ResolvedBaseURL),
 		Auth:     cfg.ResolvedAuth,
 		AuthType: cfg.AuthType,
 		Headers:  cfg.Headers,
 		Spec:     cfg.Spec,
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s, nil
 }
 
 func (s *Session) buildURL(path string) string {

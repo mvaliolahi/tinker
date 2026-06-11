@@ -2,26 +2,15 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"strings"
+
+	"github.com/mvaliolahi/tinker/internal/env"
 )
 
-func ResolveEnv(val string) (string, error) {
-	if !strings.HasPrefix(val, "env:") {
-		return val, nil
-	}
-
-	name := strings.TrimPrefix(val, "env:")
-	v := os.Getenv(name)
-	if v == "" {
-		return "", fmt.Errorf("environment variable %s is not set", name)
-	}
-	return v, nil
-}
-
 func (c *Config) Resolve() error {
+	ev := c.GetEnvVars()
+
 	if c.Database != nil {
-		url, err := ResolveEnv(c.Database.Source)
+		url, err := env.Resolve(ev, c.Database.Source)
 		if err != nil {
 			return fmt.Errorf("database: %w", err)
 		}
@@ -29,14 +18,14 @@ func (c *Config) Resolve() error {
 	}
 
 	if c.API != nil {
-		base, err := ResolveEnv(c.API.BaseURL)
+		base, err := env.Resolve(ev, c.API.BaseURL)
 		if err != nil {
 			return fmt.Errorf("api.base_url: %w", err)
 		}
 		c.API.ResolvedBaseURL = base
 
 		if c.API.Auth != "" {
-			auth, err := ResolveEnv(c.API.Auth)
+			auth, err := env.Resolve(ev, c.API.Auth)
 			if err != nil {
 				return fmt.Errorf("api.auth: %w", err)
 			}
@@ -45,7 +34,7 @@ func (c *Config) Resolve() error {
 	}
 
 	if c.GRPC != nil {
-		addr, err := ResolveEnv(c.GRPC.Addr)
+		addr, err := env.Resolve(ev, c.GRPC.Addr)
 		if err != nil {
 			return fmt.Errorf("grpc.addr: %w", err)
 		}
@@ -53,4 +42,46 @@ func (c *Config) Resolve() error {
 	}
 
 	return nil
+}
+
+// Validate checks the configuration for common issues and returns all problems found.
+func (c *Config) Validate() []string {
+	var issues []string
+
+	if c.Database == nil && c.API == nil && c.GRPC == nil && c.Log == nil {
+		issues = append(issues, "no services configured (database, api, grpc, or log)")
+	}
+
+	if c.Database != nil {
+		if c.Database.Source == "" {
+			issues = append(issues, "[database] source is empty")
+		}
+		if c.Database.Type == "" {
+			issues = append(issues, "[database] type is empty")
+		}
+		if c.Database.URL == "" {
+			issues = append(issues, "[database] URL could not be resolved (check source and env vars)")
+		}
+	}
+
+	if c.API != nil {
+		if c.API.BaseURL == "" {
+			issues = append(issues, "[api] base_url is empty")
+		}
+		if c.API.ResolvedBaseURL == "" {
+			issues = append(issues, "[api] base_url could not be resolved (check env vars)")
+		}
+	}
+
+	if c.GRPC != nil {
+		if c.GRPC.Addr == "" && c.GRPC.ProtoDir == "" {
+			issues = append(issues, "[grpc] both addr and proto_dir are empty")
+		}
+	}
+
+	if c.Log != nil && len(c.Log.Files) == 0 {
+		issues = append(issues, "[log] files list is empty")
+	}
+
+	return issues
 }

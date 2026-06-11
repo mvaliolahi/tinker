@@ -5,10 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/mvaliolahi/tinker/internal/env"
 	"github.com/pelletier/go-toml/v2"
 )
-
-var envFiles = []string{".env", ".env.local", ".env.example"}
 
 func Load(dir string) (*Config, error) {
 	data, err := os.ReadFile(filepath.Join(dir, "tinker.toml"))
@@ -21,15 +20,9 @@ func Load(dir string) (*Config, error) {
 		return nil, fmt.Errorf("parsing tinker.toml: %w", err)
 	}
 
-	for _, name := range envFiles {
-		p := filepath.Join(dir, name)
-		if _, err := os.Stat(p); err == nil {
-			if err := LoadEnvFile(p); err != nil {
-				return nil, err
-			}
-			break
-		}
-	}
+	// Parse .env files into a map (no process-level mutation)
+	envVars := env.ParseFiles(dir)
+	cfg.SetEnvVars(envVars)
 
 	if err := cfg.Resolve(); err != nil {
 		return nil, err

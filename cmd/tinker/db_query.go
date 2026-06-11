@@ -17,6 +17,7 @@ func dbDescribeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer s.Close()
 			fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Describe "+args[0]))
 			fmt.Println()
 			out, err := s.Describe(args[0])
@@ -36,6 +37,7 @@ func dbCountCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer s.Close()
 			where := ""
 			if len(args) > 1 {
 				where = args[1]
@@ -59,6 +61,7 @@ func dbFindCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer s.Close()
 			fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Find "+args[0]+" #"+args[1]))
 			fmt.Println()
 			out, err := s.Find(args[0], args[1])
@@ -78,6 +81,7 @@ func dbExecCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer s.Close()
 			fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Exec"))
 			fmt.Println(ui.Dim("  " + args[0]))
 			fmt.Println()

@@ -9,10 +9,14 @@ import (
 )
 
 func apiCmd() *cobra.Command {
+	var jqFilter string
+
 	cmd := &cobra.Command{
 		Use:   "api [method] [path] [body]",
 		Short: "Call your project's HTTP API",
 	}
+
+	cmd.Flags().StringVarP(&jqFilter, "jq", "q", "", "Filter response with jq expression")
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "interactive",
@@ -30,7 +34,12 @@ func apiCmd() *cobra.Command {
 	})
 
 	cmd.RunE = func(_ *cobra.Command, args []string) error {
-		s, err := newAPISession()
+		var opts []api.SessionOption
+		if jqFilter != "" {
+			opts = append(opts, api.WithJqFilter(jqFilter))
+		}
+
+		s, err := newAPISessionWithOpts(opts...)
 		if err != nil {
 			return err
 		}
@@ -49,6 +58,9 @@ func apiCmd() *cobra.Command {
 		if body != "" {
 			fmt.Println(ui.KeyValue("body", body))
 		}
+		if jqFilter != "" {
+			fmt.Println(ui.KeyValue("jq", jqFilter))
+		}
 		fmt.Println()
 
 		out, err := s.Request(method, path, body, nil)
@@ -65,6 +77,14 @@ func newAPISession() (*api.Session, error) {
 		return nil, err
 	}
 	return api.NewSession(cfg.API)
+}
+
+func newAPISessionWithOpts(opts ...api.SessionOption) (*api.Session, error) {
+	cfg, _, err := loadConfig()
+	if err != nil {
+		return nil, err
+	}
+	return api.NewSession(cfg.API, opts...)
 }
 
 func parseAPICall(args []string) (method, path, body string) {

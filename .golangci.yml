@@ -1,0 +1,20 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck       # unchecked errors
+    - govet          # reports suspicious constructs
+    - staticcheck    # advanced static analysis
+    - unused         # finds unused code
+    - gosimple       # simplifies code
+    - ineffassign    # detects ineffectual assignments
+    - typecheck      # type-checks the code
+    - gosec          # security issues
+    - revive         # style enforcement
+    - gocritic       # performance and style checks
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters: [errcheck, gosec]

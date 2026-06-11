@@ -2,14 +2,27 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/mvaliolahi/tinker/internal/ui"
 )
+
+const httpRequestTimeout = 30 * time.Second
+
+var httpClient = &http.Client{
+	Timeout: httpRequestTimeout,
+	Transport: &http.Transport{
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 10 * time.Second,
+	},
+}
 
 func (s *Session) Request(method, path, body string, extra map[string]string) (string, error) {
 	var bodyR io.Reader
@@ -17,7 +30,10 @@ func (s *Session) Request(method, path, body string, extra map[string]string) (s
 		bodyR = strings.NewReader(body)
 	}
 
-	req, err := http.NewRequest(method, s.buildURL(path), bodyR)
+	ctx, cancel := context.WithTimeout(context.Background(), httpRequestTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, method, s.buildURL(path), bodyR)
 	if err != nil {
 		return "", fmt.Errorf("creating request: %w", err)
 	}
@@ -35,13 +51,22 @@ func (s *Session) Request(method, path, body string, extra map[string]string) (s
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return "", fmt.Errorf("request timed out after %s", httpRequestTimeout)
+		}
 		return "", fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
+
+	// Try jq filtering if available and response is JSON
+	filteredBody, err := s.tryJqFilter(respBody)
+	if err == nil && filteredBody != "" {
+		respBody = []byte(filteredBody)
+	}
 
 	var buf bytes.Buffer
 
@@ -62,6 +87,35 @@ func (s *Session) Request(method, path, body string, extra map[string]string) (s
 	}
 
 	return buf.String(), nil
+}
+
+// tryJqFilter attempts to pipe the response through jq if a filter is set and jq is available.
+func (s *Session) tryJqFilter(body []byte) (string, error) {
+	if s.jqFilter == "" {
+		return "", nil
+	}
+
+	jqPath, err := exec.LookPath("jq")
+	if err != nil {
+		return "", fmt.Errorf("jq not found")
+	}
+
+	cmd := exec.Command(jqPath, s.jqFilter)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return "", err
+	}
+
+	go func() {
+		stdin.Write(body)
+		stdin.Close()
+	}()
+
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }
 
 func protoVersion(resp *http.Response) string {
@@ -94,7 +148,6 @@ func colorizeJSON(raw string) string {
 	}
 	indented := buf.String()
 
-	// Tokenize: extract strings and non-strings, then colorize
 	var out bytes.Buffer
 	i := 0
 	expectKey := true
@@ -103,7 +156,6 @@ func colorizeJSON(raw string) string {
 		ch := indented[i]
 
 		if ch == '"' {
-			// Read the full string (including quotes)
 			end := findStringEnd(indented, i)
 			token := indented[i:end]
 
@@ -121,7 +173,7 @@ func colorizeJSON(raw string) string {
 		switch ch {
 		case ':':
 			out.WriteString(ui.Dim(": "))
-			i += 2 // skip colon and space
+			i += 2
 			expectKey = false
 		case ',':
 			out.WriteString(ui.Dim(","))
@@ -144,7 +196,7 @@ func colorizeJSON(raw string) string {
 }
 
 func findStringEnd(s string, start int) int {
-	i := start + 1 // skip opening quote
+	i := start + 1
 	for i < len(s) {
 		if s[i] == '\\' {
 			i += 2
