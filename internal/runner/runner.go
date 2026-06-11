@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -37,8 +36,39 @@ func Interactive(name string, args ...string) error {
 		signal.Stop(ch)
 	}()
 
-	go io.Copy(ptmx, os.Stdin)
-	go io.Copy(os.Stdout, ptmx)
+	go relayOut(ptmx)
+	go relayIn(ptmx)
 
 	return cmd.Wait()
+}
+
+func relayOut(ptmx *os.File) {
+	buf := make([]byte, 8192)
+	for {
+		n, err := ptmx.Read(buf)
+		if n > 0 {
+			os.Stdout.Write(buf[:n])
+		}
+		if err != nil {
+			return
+		}
+	}
+}
+
+func relayIn(ptmx *os.File) {
+	buf := make([]byte, 8192)
+	for {
+		n, err := os.Stdin.Read(buf)
+		if n > 0 {
+			for i := 0; i < n; i++ {
+				if buf[i] == '\r' {
+					buf[i] = '\n'
+				}
+			}
+			ptmx.Write(buf[:n])
+		}
+		if err != nil {
+			return
+		}
+	}
 }
