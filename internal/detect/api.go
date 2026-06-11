@@ -6,8 +6,15 @@ import (
 	"path/filepath"
 )
 
-var urlEnvNames = []string{"API_BASE_URL", "API_URL", "BASE_URL", "SERVER_ADDR", "APP_URL"}
-var authEnvNames = []string{"API_TOKEN", "API_KEY", "AUTH_TOKEN", "BEARER_TOKEN", "API_AUTH_TOKEN"}
+var urlEnvNames = []string{
+	"API_BASE_URL", "API_URL", "BASE_URL", "SERVER_ADDR",
+	"APP_URL", "SERVER_URL", "HOST", "PORT", "SERVER_PORT",
+}
+
+var authEnvNames = []string{
+	"API_TOKEN", "API_KEY", "AUTH_TOKEN", "BEARER_TOKEN",
+	"API_AUTH_TOKEN", "JWT_SECRET", "ACCESS_TOKEN",
+}
 
 var specFiles = []string{
 	"openapi.yaml", "openapi.yml", "openapi.json",
