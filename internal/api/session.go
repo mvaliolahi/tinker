@@ -7,6 +7,31 @@ import (
 	"github.com/mvaliolahi/tinker/internal/config"
 )
 
+func normalizeBaseURL(raw string) string {
+	base := strings.TrimRight(raw, "/")
+
+	if strings.HasPrefix(base, "http://") || strings.HasPrefix(base, "https://") {
+		return base
+	}
+
+	if strings.HasPrefix(base, ":") {
+		base = "localhost" + base
+	} else if isPortOnly(base) {
+		base = "localhost:" + base
+	}
+
+	return "http://" + base
+}
+
+func isPortOnly(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return len(s) > 0
+}
+
 type Session struct {
 	BaseURL  string
 	Auth     string
@@ -23,13 +48,8 @@ func NewSession(cfg *config.API) (*Session, error) {
 		return nil, fmt.Errorf("api base_url is empty")
 	}
 
-	base := strings.TrimRight(cfg.ResolvedBaseURL, "/")
-	if !strings.HasPrefix(base, "http://") && !strings.HasPrefix(base, "https://") {
-		base = "http://" + base
-	}
-
 	return &Session{
-		BaseURL:  base,
+		BaseURL:  normalizeBaseURL(cfg.ResolvedBaseURL),
 		Auth:     cfg.ResolvedAuth,
 		AuthType: cfg.AuthType,
 		Headers:  cfg.Headers,
