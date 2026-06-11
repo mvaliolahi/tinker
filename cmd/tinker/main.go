@@ -10,7 +10,7 @@ import (
         "github.com/spf13/cobra"
 )
 
-const version = "0.15.1"
+const version = "0.16.0"
 
 var projectDir string
 
