@@ -12,16 +12,22 @@ import (
 
 type Dep struct {
 	Name     string
-	Repo     string
+	Repo     string // Go repo path (e.g., "github.com/xo/usql")
 	BuildDir string
 	Purpose  string
+	Pip      string // Python package name (e.g., "litecli") for pip-based installs
 }
 
 var all = []Dep{
+	// Go-based tools
 	{Name: "usql", Repo: "github.com/xo/usql", BuildDir: ".", Purpose: "database"},
 	{Name: "grpcurl", Repo: "github.com/fullstorydev/grpcurl", BuildDir: "./cmd/grpcurl", Purpose: "grpc"},
 	{Name: "evans", Repo: "github.com/ktr0731/evans", BuildDir: ".", Purpose: "grpc"},
 	{Name: "curlie", Repo: "github.com/rs/curlie", BuildDir: ".", Purpose: "api"},
+	// Python-based modern DB CLIs with syntax highlighting + autocomplete
+	{Name: "litecli", Pip: "litecli", Purpose: "database"},
+	{Name: "pgcli", Pip: "pgcli", Purpose: "database"},
+	{Name: "mycli", Pip: "mycli", Purpose: "database"},
 }
 
 func ForPurpose(purpose string) []Dep {
@@ -60,16 +66,49 @@ func Install(dep Dep) error {
 
 	fmt.Printf("  %-10s %s\n", dep.Name, ui.Accent("installing..."))
 
-	if err := cloneAndBuild(dep); err != nil {
-		return fmt.Errorf("install %s: %s", dep.Name, err)
+	// Try pip install first for Python packages
+	if dep.Pip != "" {
+		if err := pipInstall(dep); err != nil {
+			return fmt.Errorf("install %s: %s", dep.Name, err)
+		}
+		if IsInstalled(dep.Name) {
+			fmt.Printf("  %-10s %s\n", dep.Name, ui.Success("installed"))
+			return nil
+		}
+		return fmt.Errorf("install %s: pip install succeeded but binary not found in PATH", dep.Name)
 	}
 
-	binPath, _ := goBinPath(dep.Name)
-	if _, err := os.Stat(binPath); err != nil {
-		return fmt.Errorf("install %s: binary not found after build", dep.Name)
+	// Go-based: clone and build
+	if dep.Repo != "" {
+		if err := cloneAndBuild(dep); err != nil {
+			return fmt.Errorf("install %s: %s", dep.Name, err)
+		}
+		binPath, _ := goBinPath(dep.Name)
+		if _, err := os.Stat(binPath); err != nil {
+			return fmt.Errorf("install %s: binary not found after build", dep.Name)
+		}
+		fmt.Printf("  %-10s %s\n", dep.Name, ui.Success("installed"))
+		return nil
 	}
 
-	fmt.Printf("  %-10s %s\n", dep.Name, ui.Success("installed"))
+	return fmt.Errorf("install %s: no install method (neither pip nor go repo)", dep.Name)
+}
+
+func pipInstall(dep Dep) error {
+	// Try pip3 first, then pip
+	pipCmd := "pip3"
+	if _, err := exec.LookPath("pip3"); err != nil {
+		pipCmd = "pip"
+		if _, err := exec.LookPath("pip"); err != nil {
+			return fmt.Errorf("pip not found — install Python 3 to use %s", dep.Name)
+		}
+	}
+
+	cmd := exec.Command(pipCmd, "install", "--user", dep.Pip)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("pip install %s: %s", dep.Pip, shortErr(out, err))
+	}
 	return nil
 }
 
