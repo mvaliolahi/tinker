@@ -25,7 +25,9 @@ func grpcCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		fmt.Println("  " + ui.GRPCLabel() + " " + ui.Header("Interactive session"))
+		fmt.Println("  " + ui.GRPCLabel() + " " + ui.Bold("Interactive session"))
+		fmt.Println(ui.KeyValue("addr", s.Addr))
+		fmt.Println()
 		return s.Interactive()
 	}
 
@@ -49,7 +51,8 @@ func grpcListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Println("  " + ui.GRPCLabel() + " " + ui.Header("Services"))
+			fmt.Println("  " + ui.GRPCLabel() + " " + ui.Bold("Services"))
+			fmt.Println()
 			out, err := s.ListServices()
 			fmt.Print(out)
 			return err
@@ -67,7 +70,8 @@ func grpcDescribeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Println("  " + ui.GRPCLabel() + " " + ui.Header("Describe "+args[0]))
+			fmt.Println("  " + ui.GRPCLabel() + " " + ui.Bold("Describe "+args[0]))
+			fmt.Println()
 			out, err := s.Describe(args[0])
 			fmt.Print(out)
 			return err
@@ -89,7 +93,11 @@ func grpcCallCmd() *cobra.Command {
 			if len(args) > 1 {
 				data = args[1]
 			}
-			fmt.Println("  " + ui.GRPCLabel() + " " + ui.Header("Call "+args[0]))
+			fmt.Println("  " + ui.GRPCLabel() + " " + ui.Bold("Call "+args[0]))
+			if data != "" {
+				fmt.Println(ui.KeyValue("data", data))
+			}
+			fmt.Println()
 			out, err := s.Call(args[0], data)
 			fmt.Print(out)
 			return err

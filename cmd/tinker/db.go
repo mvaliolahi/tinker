@@ -28,7 +28,7 @@ func dbCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		fmt.Println("  " + ui.DBLabel() + " " + ui.Header("Connecting to "+s.Type+"..."))
+		printDBInfo(s)
 		return s.Connect()
 	}
 
@@ -43,6 +43,16 @@ func newDBSession() (*db.Session, error) {
 	return db.NewSession(cfg.Database)
 }
 
+func printDBInfo(s *db.Session) {
+	fmt.Println()
+	fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Database"))
+	fmt.Println(ui.KeyValue("type", s.Type))
+	fmt.Println(ui.KeyValue("driver", s.Driver))
+	fmt.Println()
+	fmt.Println(ui.Dim("  Opening interactive session..."))
+	fmt.Println()
+}
+
 func dbConnectCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "connect",
@@ -52,7 +62,7 @@ func dbConnectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Println("  " + ui.DBLabel() + " " + ui.Header("Connecting to "+s.Type+"..."))
+			printDBInfo(s)
 			return s.Connect()
 		},
 	}
@@ -67,6 +77,8 @@ func dbTablesCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Tables"))
+			fmt.Println()
 			out, err := s.Tables()
 			fmt.Print(out)
 			return err

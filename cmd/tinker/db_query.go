@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/mvaliolahi/tinker/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -16,6 +17,8 @@ func dbDescribeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Describe "+args[0]))
+			fmt.Println()
 			out, err := s.Describe(args[0])
 			fmt.Print(out)
 			return err
@@ -37,6 +40,8 @@ func dbCountCmd() *cobra.Command {
 			if len(args) > 1 {
 				where = args[1]
 			}
+			fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Count "+args[0]))
+			fmt.Println()
 			out, err := s.Count(args[0], where)
 			fmt.Print(out)
 			return err
@@ -54,6 +59,8 @@ func dbFindCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Find "+args[0]+" #"+args[1]))
+			fmt.Println()
 			out, err := s.Find(args[0], args[1])
 			fmt.Print(out)
 			return err
@@ -71,6 +78,9 @@ func dbExecCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Exec"))
+			fmt.Println(ui.Dim("  " + args[0]))
+			fmt.Println()
 			out, err := s.Exec(args[0])
 			fmt.Print(out)
 			return err

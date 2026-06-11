@@ -28,7 +28,8 @@ func updateCmd() *cobra.Command {
 				return fmt.Errorf("go not found — required for self-update")
 			}
 
-			fmt.Println(ui.Header("  Checking for updates..."))
+			fmt.Println()
+			fmt.Println(ui.Step(1, "Checking for updates"))
 
 			tag, err := latestTag()
 			if err != nil {
@@ -39,7 +40,7 @@ func updateCmd() *cobra.Command {
 			fmt.Println(ui.Bullet("latest", tag))
 
 			fmt.Println()
-			fmt.Println(ui.Accent("  Cloning " + repo + "@" + tag + "..."))
+			fmt.Println(ui.Step(2, "Downloading "+repo+"@"+tag))
 
 			if err := cloneAndBuild(tag); err != nil {
 				fmt.Println()
@@ -47,6 +48,8 @@ func updateCmd() *cobra.Command {
 				return goInstallFallback(tag)
 			}
 
+			fmt.Println()
+			fmt.Println(ui.StepDone(2, "Built and installed"))
 			fmt.Println()
 			fmt.Println(ui.Success("Updated to " + tag + "!"))
 			return nil
@@ -67,7 +70,7 @@ func cloneAndBuild(tag string) error {
 		return fmt.Errorf("git clone: %s: %w", string(out), err)
 	}
 
-	fmt.Println(ui.Accent("  Building..."))
+	fmt.Println(ui.Dim("  Building..."))
 
 	binDir, err := binDir()
 	if err != nil {
@@ -86,7 +89,7 @@ func cloneAndBuild(tag string) error {
 
 func goInstallFallback(tag string) error {
 	pkg := fmt.Sprintf("github.com/%s/cmd/tinker@%s", repo, tag)
-	fmt.Println(ui.Accent("  Installing " + pkg + "..."))
+	fmt.Println(ui.Dim("  Installing " + pkg + "..."))
 
 	cmd := exec.Command("go", "install", pkg)
 	cmd.Env = append(os.Environ(), "GOFLAGS=")

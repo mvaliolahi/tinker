@@ -22,7 +22,9 @@ func apiCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Println("  " + ui.APILabel() + " " + ui.Header("Interactive session"))
+			fmt.Println("  " + ui.APILabel() + " " + ui.Bold("Interactive session"))
+			fmt.Println(ui.KeyValue("base", s.BaseURL))
+			fmt.Println()
 			return s.Interactive()
 		},
 	})
@@ -34,12 +36,21 @@ func apiCmd() *cobra.Command {
 		}
 
 		if len(args) == 0 {
-			fmt.Println("  " + ui.APILabel() + " " + ui.Header("Interactive session"))
+			fmt.Println("  " + ui.APILabel() + " " + ui.Bold("Interactive session"))
+			fmt.Println(ui.KeyValue("base", s.BaseURL))
+			fmt.Println()
 			return s.Interactive()
 		}
 
 		method, path, body := parseAPICall(args)
-		fmt.Println("  " + ui.APILabel() + " " + ui.Bold(method+" "+path))
+		fmt.Println()
+		fmt.Println("  " + ui.APILabel() + " " + ui.HTTPMethod(method) + " " + ui.Accent(path))
+		fmt.Println(ui.KeyValue("url", s.BaseURL+path))
+		if body != "" {
+			fmt.Println(ui.KeyValue("body", body))
+		}
+		fmt.Println()
+
 		out, err := s.Request(method, path, body, nil)
 		fmt.Print(out)
 		return err

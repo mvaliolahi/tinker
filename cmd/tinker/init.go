@@ -27,12 +27,21 @@ func initCmd() *cobra.Command {
 				return nil
 			}
 
-			fmt.Println(ui.Banner("0.8.0"))
+			fmt.Println(ui.Banner(version))
+			fmt.Println()
+			fmt.Println(ui.Step(1, "Scanning project"))
+			fmt.Println(ui.Dim("  " + dir))
 			fmt.Println()
 
-			fmt.Println(ui.Header("  Scanning project..."))
-			fmt.Println(ui.Dim("  " + dir))
-			printEnvScan(dir)
+			for _, name := range []string{".env", ".env.example", ".env.local"} {
+				if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+					fmt.Println(ui.Bullet("found", name))
+				}
+			}
+
+			fmt.Println()
+			fmt.Println(ui.Step(2, "Detecting services"))
+			fmt.Println()
 
 			result := detect.New(dir).Detect()
 			printDetection(result)
@@ -40,7 +49,7 @@ func initCmd() *cobra.Command {
 			if result.Database == nil && result.API == nil && result.GRPC == nil {
 				fmt.Println()
 				fmt.Println(ui.Warning("Nothing detected."))
-				fmt.Println(ui.Dim("  Create tinker.toml manually — see docs for examples."))
+				fmt.Println(ui.Hint("Create tinker.toml manually — see docs for examples."))
 				return nil
 			}
 
@@ -49,10 +58,13 @@ func initCmd() *cobra.Command {
 			}
 
 			fmt.Println()
-			fmt.Println(ui.Success("Generated tinker.toml"))
+			fmt.Println(ui.StepDone(2, "Generated tinker.toml"))
 			fmt.Println(ui.Dim("  Review and adjust as needed."))
 
-			fmt.Println(ui.Section("Installing Dependencies"))
+			fmt.Println()
+			fmt.Println(ui.Step(3, "Installing dependencies"))
+			fmt.Println()
+
 			var failed int
 			if result.Database != nil {
 				failed += len(deps.InstallForPurpose("database"))
@@ -64,52 +76,45 @@ func initCmd() *cobra.Command {
 				failed += len(deps.InstallForPurpose("grpc"))
 			}
 
+			fmt.Println()
 			if failed > 0 {
-				fmt.Println()
-				fmt.Println(ui.Warning("Some dependencies failed to install."))
-				fmt.Println(ui.Dim("  Run 'tinker deps install' to retry"))
-				fmt.Println(ui.Dim("  Or: GOPROXY=direct go install <module>@latest"))
+				fmt.Println(ui.Warning(fmt.Sprintf("%d dependencies failed to install.", failed)))
+				fmt.Println(ui.Hint("tinker deps install  to retry"))
 			} else {
-				fmt.Println()
-				fmt.Println(ui.Success("All dependencies installed."))
+				fmt.Println(ui.StepDone(3, "All dependencies installed"))
 			}
 
 			fmt.Println()
-			fmt.Println(ui.Dim("  Run 'tinker db' to connect to your database."))
+			fmt.Println(ui.Step(4, "Ready!"))
+			fmt.Println(ui.Hint("tinker db              Connect to your database"))
+			fmt.Println(ui.Hint("tinker api GET /path   Call an API endpoint"))
+			fmt.Println(ui.Hint("tinker                 Show project dashboard"))
 			return nil
 		},
 	}
 }
 
-func printEnvScan(dir string) {
-	for _, name := range []string{".env", ".env.example", ".env.local"} {
-		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
-			fmt.Println(ui.Bullet("found", name))
-		}
-	}
-}
-
 func printDetection(r *detect.Result) {
 	if r.Database != nil {
+		fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Database"))
+		fmt.Println(ui.KeyValue("type", r.Database.Type))
+		fmt.Println(ui.KeyValue("source", r.Database.Source))
 		fmt.Println()
-		fmt.Println("  " + ui.DBLabel() + " " + ui.Header("Database"))
-		fmt.Println(ui.KeyValue("  type", r.Database.Type))
-		fmt.Println(ui.KeyValue("  source", r.Database.Source))
 	}
 	if r.API != nil {
-		fmt.Println()
-		fmt.Println("  " + ui.APILabel() + " " + ui.Header("API"))
-		fmt.Println(ui.KeyValue("  base_url", r.API.BaseURL))
+		fmt.Println("  " + ui.APILabel() + " " + ui.Bold("API"))
+		fmt.Println(ui.KeyValue("base_url", r.API.BaseURL))
 		if r.API.Spec != "" {
-			fmt.Println(ui.KeyValue("  spec", r.API.Spec))
+			fmt.Println(ui.KeyValue("spec", r.API.Spec))
 		}
+		fmt.Println()
 	}
 	if r.GRPC != nil {
-		fmt.Println()
-		fmt.Println("  " + ui.GRPCLabel() + " " + ui.Header("gRPC"))
-		fmt.Println(ui.KeyValue("  addr", r.GRPC.Addr))
+		fmt.Println("  " + ui.GRPCLabel() + " " + ui.Bold("gRPC"))
+		fmt.Println(ui.KeyValue("addr", r.GRPC.Addr))
 		if r.GRPC.ProtoDir != "" {
-			fmt.Println(ui.KeyValue("  proto_dir", r.GRPC.ProtoDir))
+			fmt.Println(ui.KeyValue("proto_dir", r.GRPC.ProtoDir))
 		}
+		fmt.Println()
 	}
 }

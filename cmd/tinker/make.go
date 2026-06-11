@@ -22,6 +22,7 @@ func makeCmd() *cobra.Command {
 				return fmt.Errorf("no Makefile found in %s", dir)
 			}
 			fmt.Println("  " + ui.MakeLabel() + " " + ui.Bold("make "+args[0]))
+			fmt.Println()
 			return tmaker.Run(dir, args[0], args[1:])
 		},
 	}
@@ -43,11 +44,10 @@ func makeListCmd() *cobra.Command {
 			if !tmaker.HasMakefile(dir) {
 				return fmt.Errorf("no Makefile found in %s", dir)
 			}
-			fmt.Println("  " + ui.MakeLabel() + " " + ui.Header("Targets"))
 			fmt.Println()
-			for _, t := range tmaker.Targets(dir) {
-				fmt.Println(ui.Bullet("target", t))
-			}
+			fmt.Println("  " + ui.MakeLabel() + " " + ui.Bold("Targets"))
+			fmt.Println()
+			fmt.Print(ui.NumberedList(tmaker.Targets(dir)))
 			return nil
 		},
 	}

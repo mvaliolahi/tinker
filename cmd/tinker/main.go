@@ -5,9 +5,12 @@ import (
 	"os"
 
 	"github.com/mvaliolahi/tinker/internal/config"
+	"github.com/mvaliolahi/tinker/internal/deps"
 	"github.com/mvaliolahi/tinker/internal/ui"
 	"github.com/spf13/cobra"
 )
+
+const version = "0.9.0"
 
 var projectDir string
 
@@ -17,6 +20,7 @@ func main() {
 		Short:         "Project-aware CLI for database, API, and gRPC interaction",
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		RunE:          runDashboard,
 	}
 
 	root.PersistentFlags().StringVarP(&projectDir, "project", "p", "", "project directory")
@@ -27,6 +31,25 @@ func main() {
 		fmt.Fprintln(os.Stderr, ui.Error(err.Error()))
 		os.Exit(1)
 	}
+}
+
+func runDashboard(_ *cobra.Command, _ []string) error {
+	cfg, root, err := loadConfig()
+	if err != nil {
+		fmt.Println(ui.Banner(version))
+		fmt.Println()
+		fmt.Println(ui.Warning("No tinker.toml found."))
+		fmt.Println(ui.Hint("tinker init  to scan your project and generate config"))
+		return nil
+	}
+
+	hasDB := cfg.Database != nil
+	hasAPI := cfg.API != nil
+	hasGRPC := cfg.GRPC != nil
+	missing := len(deps.Check())
+
+	fmt.Print(ui.Dashboard(root, root, hasDB, hasAPI, hasGRPC, missing))
+	return nil
 }
 
 func loadConfig() (*config.Config, string, error) {
@@ -69,7 +92,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(_ *cobra.Command, _ []string) {
-			fmt.Println(ui.Banner("0.8.0"))
+			fmt.Println(ui.Banner(version))
 		},
 	}
 }

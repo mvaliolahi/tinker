@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/mvaliolahi/tinker/internal/run"
+	"github.com/mvaliolahi/tinker/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -22,6 +24,10 @@ func runCmd() *cobra.Command {
 				_ = cfg
 				projectRoot = root
 			}
+
+			fmt.Println("  " + ui.RunLabel() + " " + ui.Bold("Run"))
+			fmt.Println(ui.Dim("  " + args[0]))
+			fmt.Println()
 
 			code, imports := run.ParseCode(args[0])
 			return run.NewRunner(run.Config{
