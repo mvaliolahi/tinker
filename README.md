@@ -19,8 +19,18 @@ If you've used Laravel Tinker, you know the workflow: open a shell, query the da
 
 ### Install
 
+**One-line install (recommended) — installs binary + configures PATH:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mvaliolahi/tinker/main/install.sh | bash
+```
+
+**Or manually with Go:**
+
 ```bash
 go install github.com/mvaliolahi/tinker/cmd/tinker@latest
+# Then add to PATH (if not already):
+export PATH="$(go env GOPATH)/bin:$PATH"
 ```
 
 ### Initialize
