@@ -10,7 +10,7 @@ import (
         "github.com/spf13/cobra"
 )
 
-const version = "0.13.0"
+const version = "0.14.0"
 
 var projectDir string
 
@@ -25,7 +25,7 @@ func main() {
 
         root.PersistentFlags().StringVarP(&projectDir, "project", "p", "", "project directory")
 
-        root.AddCommand(initCmd(), dbCmd(), apiCmd(), grpcCmd(), runCmd(), makeCmd(), updateCmd(), depsCmd(), versionCmd())
+        root.AddCommand(initCmd(), dbCmd(), apiCmd(), grpcCmd(), logCmd(), runCmd(), makeCmd(), updateCmd(), depsCmd(), versionCmd())
 
         if err := root.Execute(); err != nil {
                 fmt.Fprintln(os.Stderr, ui.Error(err.Error()))
@@ -46,9 +46,10 @@ func runDashboard(_ *cobra.Command, _ []string) error {
         hasDB := cfg.Database != nil
         hasAPI := cfg.API != nil
         hasGRPC := cfg.GRPC != nil
+        hasLog := cfg.Log != nil && len(cfg.Log.Files) > 0
         missing := len(deps.Check())
 
-        fmt.Print(ui.Dashboard(root, root, hasDB, hasAPI, hasGRPC, missing))
+        fmt.Print(ui.Dashboard(root, root, hasDB, hasAPI, hasGRPC, hasLog, missing, version))
         return nil
 }
 
