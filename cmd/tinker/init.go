@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/mvaliolahi/tinker/internal/contract"
+	"github.com/mvaliolahi/tinker/internal/deps"
 	"github.com/mvaliolahi/tinker/internal/detect"
 	"github.com/spf13/cobra"
 )
@@ -40,7 +41,19 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("\nGenerated tinker.toml — review and adjust as needed.\n")
+			fmt.Println("\nGenerated tinker.toml — review and adjust as needed.")
+
+			fmt.Println("\nInstalling dependencies...")
+			if result.Database != nil {
+				deps.Install("database")
+			}
+			if result.API != nil {
+				deps.Install("api")
+			}
+			if result.GRPC != nil {
+				deps.Install("grpc")
+			}
+
 			return nil
 		},
 	}
