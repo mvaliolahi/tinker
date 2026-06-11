@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,6 +21,9 @@ func updateCmd() *cobra.Command {
 		Use:   "update",
 		Short: "Update tinker to the latest version",
 		RunE: func(_ *cobra.Command, _ []string) error {
+			if _, err := exec.LookPath("git"); err != nil {
+				return fmt.Errorf("git not found — required for self-update")
+			}
 			if _, err := exec.LookPath("go"); err != nil {
 				return fmt.Errorf("go not found — required for self-update")
 			}
@@ -29,29 +33,80 @@ func updateCmd() *cobra.Command {
 			tag, err := latestTag()
 			if err != nil {
 				fmt.Println(ui.Warning("Could not fetch latest version: " + err.Error()))
-				fmt.Println(ui.Dim("  Falling back to @latest..."))
-				tag = "latest"
-			} else {
-				fmt.Println(ui.Bullet("latest", tag))
+				return fmt.Errorf("cannot determine latest version")
 			}
 
-			pkg := fmt.Sprintf("github.com/%s/cmd/tinker@%s", repo, tag)
+			fmt.Println(ui.Bullet("latest", tag))
+
 			fmt.Println()
-			fmt.Println(ui.Accent("  Installing " + pkg + "..."))
+			fmt.Println(ui.Accent("  Cloning " + repo + "@" + tag + "..."))
 
-			cmd := exec.Command("go", "install", pkg)
-			cmd.Env = append(os.Environ(), "GOFLAGS=")
-			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("update failed: %w", err)
+			if err := cloneAndBuild(tag); err != nil {
+				fmt.Println()
+				fmt.Println(ui.Warning("Clone+build failed, falling back to go install..."))
+				return goInstallFallback(tag)
 			}
 
 			fmt.Println()
-			fmt.Println(ui.Success("Updated successfully!"))
+			fmt.Println(ui.Success("Updated to " + tag + "!"))
 			return nil
 		},
 	}
+}
+
+func cloneAndBuild(tag string) error {
+	tmp, err := os.MkdirTemp("", "tinker-update-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+
+	cloneURL := fmt.Sprintf("https://github.com/%s.git", repo)
+	clone := exec.Command("git", "clone", "--depth", "1", "--branch", tag, "-q", cloneURL, tmp)
+	if out, err := clone.CombinedOutput(); err != nil {
+		return fmt.Errorf("git clone: %s: %w", string(out), err)
+	}
+
+	fmt.Println(ui.Accent("  Building..."))
+
+	binDir, err := binDir()
+	if err != nil {
+		return err
+	}
+
+	binPath := filepath.Join(binDir, "tinker")
+	build := exec.Command("go", "build", "-o", binPath, "./cmd/tinker/")
+	build.Dir = tmp
+	if out, err := build.CombinedOutput(); err != nil {
+		return fmt.Errorf("go build: %s: %w", string(out), err)
+	}
+
+	return nil
+}
+
+func goInstallFallback(tag string) error {
+	pkg := fmt.Sprintf("github.com/%s/cmd/tinker@%s", repo, tag)
+	fmt.Println(ui.Accent("  Installing " + pkg + "..."))
+
+	cmd := exec.Command("go", "install", pkg)
+	cmd.Env = append(os.Environ(), "GOFLAGS=")
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("update failed: %w", err)
+	}
+
+	fmt.Println()
+	fmt.Println(ui.Success("Updated to " + tag + "!"))
+	return nil
+}
+
+func binDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, "go", "bin"), nil
 }
 
 func latestTag() (string, error) {

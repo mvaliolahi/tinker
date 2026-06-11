@@ -27,7 +27,7 @@ func initCmd() *cobra.Command {
 				return nil
 			}
 
-			fmt.Println(ui.Banner("0.7.0"))
+			fmt.Println(ui.Banner("0.7.1"))
 			fmt.Println()
 
 			fmt.Println(ui.Header("  Scanning project..."))

@@ -69,7 +69,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(_ *cobra.Command, _ []string) {
-			fmt.Println(ui.Banner("0.7.0"))
+			fmt.Println(ui.Banner("0.7.1"))
 		},
 	}
 }
