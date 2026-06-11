@@ -4,10 +4,8 @@ go 1.25.0
 
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/creack/pty/v2 v2.0.1
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/spf13/cobra v1.10.2
-	golang.org/x/term v0.44.0
 )
 
 require (
