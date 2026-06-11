@@ -8,6 +8,8 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
+var envFiles = []string{".env", ".env.local", ".env.example"}
+
 func Load(dir string) (*Config, error) {
 	data, err := os.ReadFile(filepath.Join(dir, "tinker.toml"))
 	if err != nil {
@@ -19,10 +21,13 @@ func Load(dir string) (*Config, error) {
 		return nil, fmt.Errorf("parsing tinker.toml: %w", err)
 	}
 
-	envPath := filepath.Join(dir, ".env")
-	if _, err := os.Stat(envPath); err == nil {
-		if err := LoadEnvFile(envPath); err != nil {
-			return nil, err
+	for _, name := range envFiles {
+		p := filepath.Join(dir, name)
+		if _, err := os.Stat(p); err == nil {
+			if err := LoadEnvFile(p); err != nil {
+				return nil, err
+			}
+			break
 		}
 	}
 

@@ -1,7 +1,5 @@
 package detect
 
-import "os"
-
 type Result struct {
 	Database *DatabaseResult `toml:"database,omitempty"`
 	API      *APIResult      `toml:"api,omitempty"`
@@ -32,7 +30,7 @@ type Detector struct {
 }
 
 func New(dir string) *Detector {
-	return &Detector{dir: dir, env: ParseEnvFile(dir)}
+	return &Detector{dir: dir, env: ParseEnvFiles(dir)}
 }
 
 func (d *Detector) Detect() *Result {
@@ -44,8 +42,5 @@ func (d *Detector) Detect() *Result {
 }
 
 func (d *Detector) getEnv(key string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
 	return d.env[key]
 }

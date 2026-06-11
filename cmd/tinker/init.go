@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/mvaliolahi/tinker/internal/contract"
 	"github.com/mvaliolahi/tinker/internal/detect"
@@ -19,18 +20,19 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-			if _, err := os.Stat(fmt.Sprintf("%s/tinker.toml", dir)); err == nil {
+			if _, err := os.Stat(filepath.Join(dir, "tinker.toml")); err == nil {
 				fmt.Fprintf(os.Stderr, "tinker.toml already exists — remove it to regenerate\n")
 				return nil
 			}
 
-			fmt.Printf("Scanning %s...\n\n", dir)
+			fmt.Printf("Scanning %s...\n", dir)
+			printEnvScan(dir)
 
 			result := detect.New(dir).Detect()
 			printDetection(result)
 
 			if result.Database == nil && result.API == nil && result.GRPC == nil {
-				fmt.Println("Nothing detected. Create tinker.toml manually — see docs for examples.")
+				fmt.Println("\nNothing detected. Create tinker.toml manually — see docs for examples.")
 				return nil
 			}
 
@@ -41,6 +43,14 @@ func initCmd() *cobra.Command {
 			fmt.Printf("\nGenerated tinker.toml — review and adjust as needed.\n")
 			return nil
 		},
+	}
+}
+
+func printEnvScan(dir string) {
+	for _, name := range []string{".env", ".env.example", ".env.local"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+			fmt.Printf("  found %s\n", name)
+		}
 	}
 }
 
