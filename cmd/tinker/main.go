@@ -20,7 +20,7 @@ func main() {
 
 	root.PersistentFlags().StringVarP(&projectDir, "project", "p", "", "project directory")
 
-	root.AddCommand(initCmd(), dbCmd(), apiCmd(), grpcCmd(), runCmd(), updateCmd(), depsCmd(), versionCmd())
+	root.AddCommand(initCmd(), dbCmd(), apiCmd(), grpcCmd(), runCmd(), makeCmd(), updateCmd(), depsCmd(), versionCmd())
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -67,6 +67,6 @@ func versionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print version",
-		Run:   func(_ *cobra.Command, _ []string) { fmt.Println("tinker v0.5.0") },
+		Run:   func(_ *cobra.Command, _ []string) { fmt.Println("tinker v0.6.0") },
 	}
 }

@@ -93,6 +93,15 @@ tinker grpc call UserService/GetUser '{"id": 1}'
 
 # Run one-off Go code in project context
 tinker run 'fmt.Println("Hello from tinker!")'
+
+# Run Makefile targets
+tinker make build
+tinker make test
+tinker make list        # list available targets
+
+# Manage dependencies
+tinker deps list        # check what's installed
+tinker deps install     # install missing tools
 ```
 
 ## The Contract
