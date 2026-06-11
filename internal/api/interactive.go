@@ -2,8 +2,9 @@ package api
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
+
+	"github.com/mvaliolahi/tinker/internal/runner"
 )
 
 func (s *Session) Interactive() error {
@@ -24,9 +25,7 @@ func (s *Session) runHTTPie() error {
 	}
 	args = append(args, s.BaseURL)
 
-	cmd := exec.Command("http", args...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	return cmd.Run()
+	return runner.Interactive("http", args...)
 }
 
 func (s *Session) runCurlie() error {
@@ -36,7 +35,5 @@ func (s *Session) runCurlie() error {
 		args = append([]string{"-H", fmt.Sprintf("%s: %s", k, v)}, args...)
 	}
 
-	cmd := exec.Command("curlie", args...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	return cmd.Run()
+	return runner.Interactive("curlie", args...)
 }

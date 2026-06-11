@@ -2,9 +2,10 @@ package db
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/mvaliolahi/tinker/internal/runner"
 )
 
 func (s *Session) dsnForUSQL() string {
@@ -20,9 +21,7 @@ func (s *Session) Connect() error {
 		return fmt.Errorf("usql not found — run 'tinker deps' to install")
 	}
 
-	cmd := exec.Command("usql", s.dsnForUSQL())
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	return cmd.Run()
+	return runner.Interactive("usql", s.dsnForUSQL())
 }
 
 func (s *Session) Exec(query string) (string, error) {

@@ -2,8 +2,9 @@ package grpc
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
+
+	"github.com/mvaliolahi/tinker/internal/runner"
 )
 
 func (s *Session) baseArgs() []string {
@@ -69,7 +70,5 @@ func (s *Session) runEvans() error {
 	}
 	args = append(args, s.Addr)
 
-	cmd := exec.Command("evans", args...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	return cmd.Run()
+	return runner.Interactive("evans", args...)
 }
