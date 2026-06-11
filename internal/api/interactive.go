@@ -13,7 +13,7 @@ func (s *Session) Interactive() error {
 	if p, _ := exec.LookPath("curlie"); p != "" {
 		return s.runCurlie()
 	}
-	return fmt.Errorf("no HTTP client found — install httpie or curlie")
+	return fmt.Errorf("no HTTP client found — run 'tinker deps' to install curlie")
 }
 
 func (s *Session) runHTTPie() error {

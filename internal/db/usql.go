@@ -17,7 +17,7 @@ func (s *Session) dsnForUSQL() string {
 
 func (s *Session) Connect() error {
 	if _, err := exec.LookPath("usql"); err != nil {
-		return fmt.Errorf("usql not found — install: go install github.com/xo/usql@latest")
+		return fmt.Errorf("usql not found — run 'tinker deps' to install")
 	}
 
 	cmd := exec.Command("usql", s.dsnForUSQL())
@@ -27,7 +27,7 @@ func (s *Session) Connect() error {
 
 func (s *Session) Exec(query string) (string, error) {
 	if _, err := exec.LookPath("usql"); err != nil {
-		return "", fmt.Errorf("usql not found")
+		return "", fmt.Errorf("usql not found — run 'tinker deps' to install")
 	}
 
 	cmd := exec.Command("usql", s.dsnForUSQL(), "-c", query)

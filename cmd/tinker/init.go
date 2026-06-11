@@ -40,18 +40,24 @@ func initCmd() *cobra.Command {
 			if err := contract.Generate(result, dir); err != nil {
 				return err
 			}
-
 			fmt.Println("\nGenerated tinker.toml — review and adjust as needed.")
 
 			fmt.Println("\nInstalling dependencies...")
+			var failed int
 			if result.Database != nil {
-				deps.Install("database")
+				failed += len(deps.InstallForPurpose("database"))
 			}
 			if result.API != nil {
-				deps.Install("api")
+				failed += len(deps.InstallForPurpose("api"))
 			}
 			if result.GRPC != nil {
-				deps.Install("grpc")
+				failed += len(deps.InstallForPurpose("grpc"))
+			}
+
+			if failed > 0 {
+				fmt.Println("\nSome dependencies failed to install.")
+				fmt.Println("Run 'tinker deps install' to retry, or install manually with:")
+				fmt.Println("  GOPROXY=direct go install <module>@latest")
 			}
 
 			return nil

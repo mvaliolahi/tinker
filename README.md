@@ -165,9 +165,17 @@ auth_type = "bearer"
 
 ## Prerequisites
 
-Tinker orchestrates existing tools. Install the ones you need:
+Tinker orchestrates existing tools. **`tinker init` auto-installs the ones you need** based on what's detected in your project. You can also manage them manually:
 
-| Tool | Purpose | Install |
+```bash
+# Check which tools are installed
+tinker deps list
+
+# Install all missing tools
+tinker deps install
+```
+
+| Tool | Purpose | Manual Install |
 |------|---------|---------|
 | **usql** | Database REPL | `go install github.com/xo/usql@latest` |
 | **httpie** | HTTP client | `pip install httpie` or `brew install httpie` |
@@ -176,6 +184,8 @@ Tinker orchestrates existing tools. Install the ones you need:
 | **grpcurl** | gRPC client | `go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest` |
 
 You don't need all of them — only install the tools for the features you use.
+
+> **Note:** If `go install` fails due to proxy rate limits, try `GOPROXY=direct go install <module>@latest`.
 
 ## Architecture
 

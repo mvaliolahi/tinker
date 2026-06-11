@@ -16,7 +16,7 @@ func (s *Session) baseArgs() []string {
 
 func (s *Session) ListServices() (string, error) {
 	if _, err := exec.LookPath("grpcurl"); err != nil {
-		return "", fmt.Errorf("grpcurl not found — install: go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest")
+		return "", fmt.Errorf("grpcurl not found — run 'tinker deps' to install")
 	}
 
 	args := append(s.baseArgs(), s.Addr, "list")
@@ -26,7 +26,7 @@ func (s *Session) ListServices() (string, error) {
 
 func (s *Session) Describe(service string) (string, error) {
 	if _, err := exec.LookPath("grpcurl"); err != nil {
-		return "", fmt.Errorf("grpcurl not found")
+		return "", fmt.Errorf("grpcurl not found — run 'tinker deps' to install")
 	}
 
 	args := append(s.baseArgs(), s.Addr, "describe", service)
@@ -36,7 +36,7 @@ func (s *Session) Describe(service string) (string, error) {
 
 func (s *Session) Call(method, data string) (string, error) {
 	if _, err := exec.LookPath("grpcurl"); err != nil {
-		return "", fmt.Errorf("grpcurl not found")
+		return "", fmt.Errorf("grpcurl not found — run 'tinker deps' to install")
 	}
 
 	args := s.baseArgs()
@@ -54,9 +54,9 @@ func (s *Session) Interactive() error {
 		return s.runEvans()
 	}
 	if _, err := exec.LookPath("grpcurl"); err == nil {
-		return fmt.Errorf("evans not found (interactive REPL) — install: go install github.com/ktr0731/evans@latest\nUse 'tinker grpc call' with grpcurl instead")
+		return fmt.Errorf("evans not found (interactive REPL) — run 'tinker deps' to install\nUse 'tinker grpc call' with grpcurl instead")
 	}
-	return fmt.Errorf("no gRPC client found — install evans or grpcurl")
+	return fmt.Errorf("no gRPC client found — run 'tinker deps' to install")
 }
 
 func (s *Session) runEvans() error {
