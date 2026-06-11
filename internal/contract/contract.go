@@ -87,3 +87,91 @@ func writeCommands(sb *strings.Builder) {
         sb.WriteString("# migrate = \"go run ./cmd/migrate\"\n")
         sb.WriteString("# seed = \"go run ./cmd/seed\"\n\n")
 }
+
+// SaveLogConfig updates or appends the [log] section in tinker.toml.
+// If a [log] section already exists, it is replaced. Other content is preserved.
+func SaveLogConfig(files []string, dir string) error {
+        tomlPath := filepath.Join(dir, "tinker.toml")
+        data, err := os.ReadFile(tomlPath)
+        if err != nil {
+                return fmt.Errorf("reading tinker.toml: %w", err)
+        }
+
+        content := string(data)
+
+        // Build the new [log] section
+        var logSection strings.Builder
+        logSection.WriteString("[log]\n")
+        logSection.WriteString("files = [\n")
+        for _, f := range files {
+                fmt.Fprintf(&logSection, "  %q,\n", f)
+        }
+        logSection.WriteString("]\n")
+
+        // Check if [log] section already exists
+        logStart := findSection(content, "log")
+
+        if logStart >= 0 {
+                // Find where this section ends (next section or EOF)
+                logEnd := findNextSection(content, logStart)
+                updated := content[:logStart] + logSection.String() + content[logEnd:]
+                return os.WriteFile(tomlPath, []byte(updated), 0644)
+        }
+
+        // No [log] section — append before [commands] if it exists, otherwise at end
+        commandsStart := findSection(content, "commands")
+        if commandsStart >= 0 {
+                updated := content[:commandsStart] + logSection.String() + "\n" + content[commandsStart:]
+                return os.WriteFile(tomlPath, []byte(updated), 0644)
+        }
+
+        // Append at end
+        updated := strings.TrimRight(content, "\n") + "\n\n" + logSection.String()
+        return os.WriteFile(tomlPath, []byte(updated), 0644)
+}
+
+// findSection returns the byte index where [name] section starts, or -1.
+func findSection(content, name string) int {
+        // Match [name] at start of line (not [[name]] which is a table array)
+        target := "[" + name + "]"
+        for {
+                idx := strings.Index(content, target)
+                if idx < 0 {
+                        return -1
+                }
+                // Make sure it's not a table array [[...]] by checking surrounding chars
+                if idx > 0 && content[idx-1] == '[' {
+                        content = content[idx+1:]
+                        continue
+                }
+                // Check it's at start of line
+                if idx == 0 || content[idx-1] == '\n' {
+                        return idx
+                }
+                content = content[idx+1:]
+        }
+}
+
+// findNextSection returns the byte index where the next section starts after the given position.
+func findNextSection(content string, after int) int {
+        // Skip past the section header line
+        idx := after
+        for idx < len(content) && content[idx] != '\n' {
+                idx++
+        }
+        // Now scan for next [section] at start of line
+        for idx < len(content) {
+                lineStart := idx
+                if content[idx] == '\n' {
+                        idx++
+                        lineStart = idx
+                } else {
+                        idx++
+                        continue
+                }
+                if idx < len(content) && content[idx] == '[' && (idx+1 >= len(content) || content[idx+1] != '[') {
+                        return lineStart
+                }
+        }
+        return len(content)
+}

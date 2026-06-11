@@ -7,10 +7,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/mvaliolahi/tinker/internal/config"
+	"github.com/mvaliolahi/tinker/internal/contract"
+	"github.com/mvaliolahi/tinker/internal/detect"
 	"github.com/mvaliolahi/tinker/internal/runner"
 	"github.com/mvaliolahi/tinker/internal/ui"
 	"github.com/spf13/cobra"
@@ -20,7 +23,7 @@ func logCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "log [path]",
 		Short: "Show log file contents",
-		Long:  "Display the contents of a log file. Uses files from [log] config or accepts a manual path.",
+		Long:  "Display the contents of a log file. Uses files from [log] config, scans for logs, or accepts a manual path.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			cfg, root, err := loadConfig()
@@ -28,9 +31,9 @@ func logCmd() *cobra.Command {
 				return err
 			}
 
-			path := pickLogPath(args, cfg)
-			if path == "" {
-				return fmt.Errorf("no log file specified. Pass a file path or configure [log].files in tinker.toml")
+			path, err := resolveLogPath(args, cfg, root)
+			if err != nil {
+				return err
 			}
 
 			fullPath := absLogPath(path, root)
@@ -60,7 +63,7 @@ func logCmd() *cobra.Command {
 	cmd.AddCommand(&cobra.Command{
 		Use:   "tail [path]",
 		Short: "Tail (follow) a log file in real-time",
-		Long:  "Follow a log file in real-time. Uses files from [log] config or accepts a manual path.",
+		Long:  "Follow a log file in real-time. Uses files from [log] config, scans for logs, or accepts a manual path.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			cfg, root, err := loadConfig()
@@ -68,9 +71,9 @@ func logCmd() *cobra.Command {
 				return err
 			}
 
-			path := pickLogPath(args, cfg)
-			if path == "" {
-				return fmt.Errorf("no log file specified. Pass a file path or configure [log].files in tinker.toml")
+			path, err := resolveLogPath(args, cfg, root)
+			if err != nil {
+				return err
 			}
 
 			fullPath := absLogPath(path, root)
@@ -83,12 +86,10 @@ func logCmd() *cobra.Command {
 			fmt.Println(ui.Dim("  Ctrl+C to stop"))
 			fmt.Println()
 
-			// Use system `tail -f` if available for proper follow behavior
 			if _, err := exec.LookPath("tail"); err == nil {
 				return runner.Interactive("tail", "-f", fullPath)
 			}
 
-			// Fallback: manual follow implementation
 			return manualTail(fullPath)
 		},
 	})
@@ -108,9 +109,7 @@ func logCmd() *cobra.Command {
 			if cfg.Log == nil || len(cfg.Log.Files) == 0 {
 				fmt.Println(ui.Dim("  No log files configured."))
 				fmt.Println()
-				fmt.Println(ui.Hint("Add [log] section to tinker.toml:"))
-				fmt.Println(ui.Dim("  [log]"))
-				fmt.Println(ui.Dim("  " + `files = ["app.log", "logs/error.log"]`))
+				fmt.Println(ui.Hint("Run 'tinker log' to scan and select log files"))
 				return nil
 			}
 
@@ -134,16 +133,107 @@ func logCmd() *cobra.Command {
 	return cmd
 }
 
-// pickLogPath determines which log file to use.
-// Priority: 1) manual path arg, 2) first file from config.
-func pickLogPath(args []string, cfg *config.Config) string {
+// resolveLogPath determines which log file to use.
+// Priority: 1) manual path arg, 2) first file from config, 3) scan + interactive selection.
+func resolveLogPath(args []string, cfg *config.Config, root string) (string, error) {
+	// 1. Manual path argument
 	if len(args) > 0 {
-		return args[0]
+		return args[0], nil
 	}
+
+	// 2. Configured log files
 	if cfg.Log != nil && len(cfg.Log.Files) > 0 {
-		return cfg.Log.Files[0]
+		return cfg.Log.Files[0], nil
 	}
-	return ""
+
+	// 3. Scan project for log files
+	return scanAndSelect(root)
+}
+
+// scanAndSelect scans the project for *.log files, presents them to the user,
+// saves the selection to tinker.toml, and returns the chosen path.
+func scanAndSelect(root string) (string, error) {
+	fmt.Println()
+	fmt.Println("  " + ui.LogLabel() + " " + ui.Bold("No log files configured"))
+	fmt.Println(ui.Dim("  Scanning project for log files..."))
+	fmt.Println()
+
+	found := detect.ScanLogFiles(root)
+	if len(found) == 0 {
+		fmt.Println(ui.Warning("No log files found in this project."))
+		fmt.Println()
+		fmt.Println(ui.Hint("Pass a file path directly:"))
+		fmt.Println(ui.Dim("  tinker log /path/to/file.log"))
+		return "", fmt.Errorf("no log files found")
+	}
+
+	// Show found files with file sizes
+	fmt.Println(ui.Bold("  Found log files:"))
+	fmt.Println()
+	for i, f := range found {
+		fullPath := absLogPath(f, root)
+		size := fileSize(fullPath)
+		fmt.Printf("  %s %s  %s\n",
+			ui.Dim(fmt.Sprintf("%d.", i+1)),
+			ui.Bold(f),
+			ui.Dim(size),
+		)
+	}
+	fmt.Println()
+
+	// Prompt for selection
+	fmt.Print(ui.Accent("  Select") + " " + ui.Dim("(number or path, Enter=all): "))
+
+	reader := bufio.NewReader(os.Stdin)
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(input)
+
+	var selected []string
+
+	if input == "" {
+		// Select all
+		selected = found
+	} else if num, err := strconv.Atoi(input); err == nil && num >= 1 && num <= len(found) {
+		// Select by number
+		selected = []string{found[num-1]}
+	} else {
+		// Treat as a file path
+		if _, err := os.Stat(input); err != nil {
+			return "", fmt.Errorf("file not found: %s", input)
+		}
+		selected = []string{input}
+	}
+
+	// Save to tinker.toml
+	if err := contract.SaveLogConfig(selected, root); err != nil {
+		// Non-fatal — still proceed to show the log
+		fmt.Println(ui.Warning("Could not save to tinker.toml: " + err.Error()))
+	} else {
+		fmt.Println()
+		fmt.Println(ui.Success("Saved to tinker.toml"))
+		for _, f := range selected {
+			fmt.Println(ui.Bullet("log", f))
+		}
+	}
+
+	fmt.Println()
+	return selected[0], nil
+}
+
+func fileSize(path string) string {
+	info, err := os.Stat(path)
+	if err != nil {
+		return ""
+	}
+	size := info.Size()
+	switch {
+	case size >= 1024*1024:
+		return fmt.Sprintf("%.1fMB", float64(size)/(1024*1024))
+	case size >= 1024:
+		return fmt.Sprintf("%.1fKB", float64(size)/1024)
+	default:
+		return fmt.Sprintf("%dB", size)
+	}
 }
 
 // absLogPath resolves a potentially relative path against the project root.
@@ -161,7 +251,6 @@ func manualTail(path string) error {
 	}
 	defer f.Close()
 
-	// Seek to end
 	if _, err := f.Seek(0, io.SeekEnd); err != nil {
 		return err
 	}
@@ -181,7 +270,6 @@ func manualTail(path string) error {
 	}
 }
 
-// colorizeLogLine applies color to common log patterns.
 func colorizeLogLine(line string) string {
 	line = colorizeLevels(line)
 	line = colorizeTimestamps(line)
