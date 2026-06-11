@@ -1,86 +1,111 @@
 package detect
 
 import (
-        "os"
-        "path/filepath"
-        "strings"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 type LogResult struct {
-        Files []string
+	Files []string
 }
 
 func (d *Detector) detectLog() *LogResult {
-        result := ScanLogFiles(d.dir)
-        if result == nil {
-                return nil
-        }
-        return &LogResult{Files: result}
+	result := ScanLogFiles(d.dir)
+	if result == nil {
+		return nil
+	}
+	return &LogResult{Files: result}
 }
 
-// ScanLogFiles searches for *.log files in a project directory.
+// skipDirs are directories to skip during recursive log file scanning.
+var skipDirs = map[string]bool{
+	".git":         true,
+	"node_modules": true,
+	"vendor":       true,
+	".svn":         true,
+	".hg":          true,
+	"__pycache__":  true,
+	".cache":       true,
+	".next":        true,
+	".nuxt":        true,
+	"dist":         true,
+	"build":        true,
+	"target":       true,
+	".terraform":   true,
+	"coverage":     true,
+	".tox":         true,
+	".venv":        true,
+	"venv":         true,
+}
+
+// ScanLogFiles recursively searches for *.log files in a project directory.
+// It skips common non-project directories like .git, node_modules, vendor, etc.
 // Returns nil if no log files are found.
 func ScanLogFiles(dir string) []string {
-        var files []string
+	var files []string
 
-        // Common log directories and patterns to search
-        searchDirs := []string{".", "logs", "log", "var", "var/log", "tmp"}
-        patterns := []string{"*.log", "*.log.*"}
+	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
 
-        for _, dirName := range searchDirs {
-                fullDir := filepath.Join(dir, dirName)
-                info, err := os.Stat(fullDir)
-                if err != nil || !info.IsDir() {
-                        continue
-                }
+		if d.IsDir() {
+			name := d.Name()
+			// Skip hidden dirs and known non-project dirs
+			if strings.HasPrefix(name, ".") || skipDirs[name] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 
-                for _, pattern := range patterns {
-                        matches, err := filepath.Glob(filepath.Join(fullDir, pattern))
-                        if err != nil {
-                                continue
-                        }
-                        for _, match := range matches {
-                                rel, err := filepath.Rel(dir, match)
-                                if err != nil {
-                                        rel = match
-                                }
-                                files = append(files, rel)
-                        }
-                }
-        }
+		// Check if it's a log file
+		if isLogFile(d.Name()) {
+			// Verify it's a regular file (not a directory named *.log)
+			info, err := d.Info()
+			if err != nil || info.IsDir() {
+				return nil
+			}
+			rel, err := filepath.Rel(dir, path)
+			if err != nil {
+				rel = path
+			}
+			files = append(files, rel)
+		}
 
-        // Also check common log file names at project root
-        rootLogs := []string{"app.log", "server.log", "error.log", "access.log", "debug.log", "application.log", "out.log"}
-        for _, name := range rootLogs {
-                fullPath := filepath.Join(dir, name)
-                if _, err := os.Stat(fullPath); err == nil {
-                        found := false
-                        for _, f := range files {
-                                if f == name {
-                                        found = true
-                                        break
-                                }
-                        }
-                        if !found {
-                                files = append(files, name)
-                        }
-                }
-        }
+		return nil
+	})
 
-        if len(files) == 0 {
-                return nil
-        }
+	if len(files) == 0 {
+		return nil
+	}
 
-        // Deduplicate
-        seen := make(map[string]bool)
-        unique := files[:0]
-        for _, f := range files {
-                normalized := strings.TrimSpace(f)
-                if !seen[normalized] {
-                        seen[normalized] = true
-                        unique = append(unique, normalized)
-                }
-        }
+	// Deduplicate
+	seen := make(map[string]bool)
+	unique := files[:0]
+	for _, f := range files {
+		normalized := strings.TrimSpace(f)
+		if !seen[normalized] {
+			seen[normalized] = true
+			unique = append(unique, normalized)
+		}
+	}
 
-        return unique
+	return unique
+}
+
+// isLogFile checks if a filename looks like a log file.
+func isLogFile(name string) bool {
+	lower := strings.ToLower(name)
+
+	// Match *.log and *.log.* (e.g., app.log, app.log.1, error.log.2024-01-15)
+	if strings.HasSuffix(lower, ".log") {
+		return true
+	}
+	// Match rotated/compressed logs: app.log.gz, error.log.old, access.log.1
+	if idx := strings.Index(lower, ".log."); idx > 0 {
+		return true
+	}
+
+	return false
 }
