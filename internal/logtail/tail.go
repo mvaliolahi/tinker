@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	DefaultTailLines = 20
+	DefaultTailLines  = 20
 	DefaultPollInterval = 250 * time.Millisecond
-	ChunkSize = 8192
+	ChunkSize         = 8192
 )
 
 // Follow opens a file, shows the last N lines formatted, then follows for new lines.
@@ -75,28 +75,4 @@ func ReadLastLines(f *os.File, n int) []string {
 	}
 
 	return allLines
-}
-
-// StreamFile reads a file line by line and formats each line, supporting --tail N.
-func StreamFile(path string, tailN int) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("opening log file: %w", err)
-	}
-	defer f.Close()
-
-	if tailN > 0 {
-		lines := ReadLastLines(f, tailN)
-		for _, line := range lines {
-			fmt.Println(logfmt.FormatLine(line))
-		}
-		return nil
-	}
-
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		fmt.Println(logfmt.FormatLine(scanner.Text()))
-	}
-	return scanner.Err()
 }

@@ -2,7 +2,6 @@ package ui
 
 import (
 	"bytes"
-	"fmt"
 
 	"github.com/alecthomas/chroma/v2"
 	chromaFormatters "github.com/alecthomas/chroma/v2/formatters"
@@ -52,24 +51,4 @@ func HighlightSQL(sql string) string {
 // HighlightJSON highlights a JSON string.
 func HighlightJSON(json string) string {
 	return Highlight(json, "json")
-}
-
-// HighlightYAML highlights a YAML string.
-func HighlightYAML(yaml string) string {
-	return Highlight(yaml, "yaml")
-}
-
-// HighlightGo highlights Go source code.
-func HighlightGo(code string) string {
-	return Highlight(code, "go")
-}
-
-// HighlightTOML highlights a TOML string.
-func HighlightTOML(toml string) string {
-	return Highlight(toml, "toml")
-}
-
-// FormatCount returns a styled count value.
-func FormatCount(count int64) string {
-	return fmt.Sprintf("%d\n", count)
 }

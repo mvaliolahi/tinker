@@ -41,8 +41,8 @@ func (d *Detector) detectDatabase() *DatabaseResult {
         }
 
         // 3. Detect migration and seed directories
-        result.MigrateDir = d.findDir(migrateDirCandidates)
-        result.SeedDir = d.findDir(seedDirCandidates)
+        result.MigrateDir = d.findDir(MigrateDirCandidates)
+        result.SeedDir = d.findDir(SeedDirCandidates)
 
         return result
 }
@@ -119,27 +119,6 @@ func inferDBType(get func(string) string, primary string) string {
         }
 
         return "unknown"
-}
-
-var migrateDirCandidates = []string{
-        "migrations",
-        "migrate",
-        "db/migrations",
-        "db/migrate",
-        "sql/migrations",
-        "backend/migrations",
-        "backend/migrate",
-}
-
-var seedDirCandidates = []string{
-        "seed",
-        "seeds",
-        "db/seed",
-        "db/seeds",
-        "sql/seed",
-        "sql/seeds",
-        "backend/seed",
-        "backend/seeds",
 }
 
 // findDir returns the first candidate directory that exists, or "" if none found.
