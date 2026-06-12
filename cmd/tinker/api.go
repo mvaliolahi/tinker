@@ -172,14 +172,6 @@ func apiExploreCmd() *cobra.Command {
 	}
 }
 
-func newAPISession() (*api.Session, error) {
-	cfg, _, err := loadConfig()
-	if err != nil {
-		return nil, err
-	}
-	return api.NewSession(cfg.API)
-}
-
 func newAPISessionWithOpts(opts ...api.SessionOption) (*api.Session, error) {
 	cfg, _, err := loadConfig()
 	if err != nil {

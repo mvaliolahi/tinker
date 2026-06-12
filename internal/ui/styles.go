@@ -8,13 +8,12 @@ import (
 )
 
 var (
-	bold    = lipgloss.NewStyle().Bold(true)
-	faint   = lipgloss.NewStyle().Faint(true)
-	accent  = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
-	success = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
-	error_  = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
-	warning = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
-	info    = lipgloss.NewStyle().Foreground(lipgloss.Color("14"))
+	bold     = lipgloss.NewStyle().Bold(true)
+	faint    = lipgloss.NewStyle().Faint(true)
+	accent   = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
+	success  = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	errStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	warning  = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 
 	labelStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	valueStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("15"))
@@ -35,7 +34,7 @@ func Success(text string) string {
 	return success.Bold(true).Render("✓") + " " + success.Render(text)
 }
 func Error(text string) string {
-	return error_.Bold(true).Render("✗") + " " + error_.Render(text)
+	return errStyle.Bold(true).Render("✗") + " " + errStyle.Render(text)
 }
 func Warning(text string) string {
 	return warning.Bold(true).Render("⚠") + " " + warning.Render(text)
@@ -151,7 +150,7 @@ func Step(num int, label string) string {
 	return fmt.Sprintf("  %s %s", accent.Bold(true).Render(fmt.Sprintf("%d.", num)), Bold(label))
 }
 
-func StepDone(num int, label string) string {
+func StepDone(_ int, label string) string {
 	return fmt.Sprintf("  %s %s", success.Bold(true).Render("✓"), success.Render(label))
 }
 

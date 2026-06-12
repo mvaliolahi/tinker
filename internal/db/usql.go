@@ -135,7 +135,7 @@ func (s *Session) Exec(query string) (string, error) {
 		return "", fmt.Errorf("usql not found — run 'tinker deps' to install")
 	}
 
-	cmd := exec.Command("usql", s.dsnForUSQL(), "-c", query)
+	cmd := exec.Command("usql", s.dsnForUSQL(), "-c", query) //nolint:gosec // query comes from our own code, DSN from config
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
@@ -147,7 +147,7 @@ func (s *Session) ExecFormatted(query string) (string, error) {
 	cli, args := s.nativeExec(query, true)
 	if cli != "" {
 		if _, err := exec.LookPath(cli); err == nil {
-			out, err := exec.Command(cli, args...).CombinedOutput()
+			out, err := exec.Command(cli, args...).CombinedOutput() //nolint:gosec // args built by nativeExec from config
 			return string(out), err
 		}
 	}
@@ -157,7 +157,7 @@ func (s *Session) ExecFormatted(query string) (string, error) {
 		return "", fmt.Errorf("usql not found — run 'tinker deps' to install")
 	}
 
-	cmd := exec.Command("usql", s.dsnForUSQL(), "-c", query)
+	cmd := exec.Command("usql", s.dsnForUSQL(), "-c", query) //nolint:gosec // query comes from our own code, DSN from config
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }

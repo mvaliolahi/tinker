@@ -175,7 +175,7 @@ func dbPingCmd() *cobra.Command {
 			start := time.Now()
 			if err := s.Ping(); err != nil {
 				fmt.Println("  " + ui.DBLabel() + " " + ui.Error("unreachable"))
-				fmt.Println(ui.Dim("  "+err.Error()))
+				fmt.Println(ui.Dim("  " + err.Error()))
 				return nil
 			}
 			elapsed := time.Since(start)

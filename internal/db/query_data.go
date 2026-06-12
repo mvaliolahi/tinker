@@ -93,7 +93,7 @@ func (s *Session) countTablesRendered(tableNames []string) (string, error) {
 
 	for _, t := range tableNames {
 		var count int64
-		q := fmt.Sprintf("SELECT COUNT(*) FROM %s", quoteIdent(t))
+		q := fmt.Sprintf("SELECT COUNT(*) FROM %s", quoteIdent(t)) //nolint:gosec // table name from our own introspection
 		if err := s.db.QueryRow(q).Scan(&count); err != nil {
 			dataRows = append(dataRows, []string{t, "?"})
 			continue
@@ -203,7 +203,7 @@ func (s *Session) Find(table, id string) (string, error) {
 		default:
 			ph = "?"
 		}
-		q := fmt.Sprintf("SELECT * FROM %s WHERE id = %s LIMIT 1", quoteIdent(table), ph)
+		q := fmt.Sprintf("SELECT * FROM %s WHERE id = %s LIMIT 1", quoteIdent(table), ph) //nolint:gosec // table validated, ph is a placeholder
 		rows, err := s.db.Query(q, id)
 		if err != nil {
 			return "", fmt.Errorf("find query: %w", err)

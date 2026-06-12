@@ -31,11 +31,12 @@ func dbSeedCmd() *cobra.Command {
 			}
 
 			var path string
-			if len(args) > 0 {
+			switch {
+			case len(args) > 0:
 				path = args[0]
-			} else if cfg.Database != nil && cfg.Database.SeedDir != "" {
+			case cfg.Database != nil && cfg.Database.SeedDir != "":
 				path = cfg.Database.SeedDir
-			} else {
+			default:
 				path = defaultSeedDir(root)
 			}
 			if !filepath.IsAbs(path) {
@@ -43,7 +44,7 @@ func dbSeedCmd() *cobra.Command {
 			}
 
 			fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Seed"))
-			fmt.Println(ui.Dim("  path: "+path))
+			fmt.Println(ui.Dim("  path: " + path))
 			fmt.Println()
 
 			if err := s.Seed(path); err != nil {
@@ -101,7 +102,7 @@ func dbMigrateUpCmd() *cobra.Command {
 			}
 
 			fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Migrate Up"))
-			fmt.Println(ui.Dim("  dir: "+dir))
+			fmt.Println(ui.Dim("  dir: " + dir))
 			fmt.Println()
 
 			applied, err := s.MigrateUp(dir)

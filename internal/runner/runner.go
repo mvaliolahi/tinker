@@ -10,7 +10,7 @@ import (
 func Interactive(name string, args ...string) error {
 	state, err := term.GetState(int(os.Stdin.Fd()))
 	if err == nil {
-		defer term.Restore(int(os.Stdin.Fd()), state)
+		defer func() { _ = term.Restore(int(os.Stdin.Fd()), state) }()
 	}
 
 	cmd := exec.Command(name, args...)

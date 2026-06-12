@@ -30,7 +30,7 @@ func runAPIExplorer(s *api.Session, spec *api.Spec) error {
 		fmt.Print(ui.Accent("tinker/api> "))
 
 		var input string
-		fmt.Scanln(&input)
+		_, _ = fmt.Scanln(&input)
 		input = strings.TrimSpace(input)
 		if input == "" {
 			continue

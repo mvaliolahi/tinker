@@ -33,12 +33,12 @@ func isPortOnly(s string) bool {
 }
 
 type Session struct {
-	BaseURL   string
-	Auth      string
-	AuthType  string
-	Headers   map[string]string
-	Spec      string
-	jqFilter  string // optional jq filter for response formatting
+	BaseURL  string
+	Auth     string
+	AuthType string
+	Headers  map[string]string
+	Spec     string
+	jqFilter string // optional jq filter for response formatting
 }
 
 type SessionOption func(*Session)

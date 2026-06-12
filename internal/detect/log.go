@@ -45,7 +45,7 @@ var skipDirs = map[string]bool{
 func ScanLogFiles(dir string) []string {
 	var files []string
 
-	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}

@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	DefaultTailLines  = 20
+	DefaultTailLines    = 20
 	DefaultPollInterval = 250 * time.Millisecond
-	ChunkSize         = 8192
+	ChunkSize           = 8192
 )
 
 // Follow opens a file, shows the last N lines formatted, then follows for new lines.

@@ -256,13 +256,14 @@ func parseMigrations(dir string) ([]Migration, error) {
 		rest := parts[1]
 
 		var isUp, isDown bool
-		if strings.HasSuffix(rest, ".up.sql") {
+		switch {
+		case strings.HasSuffix(rest, ".up.sql"):
 			isUp = true
 			rest = strings.TrimSuffix(rest, ".up.sql")
-		} else if strings.HasSuffix(rest, ".down.sql") {
+		case strings.HasSuffix(rest, ".down.sql"):
 			isDown = true
 			rest = strings.TrimSuffix(rest, ".down.sql")
-		} else {
+		default:
 			continue
 		}
 
