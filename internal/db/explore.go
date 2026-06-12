@@ -33,6 +33,9 @@ func (s *Session) ExploreTable(table string, limit int) ([]string, [][]string, e
                 return nil, nil, err
         }
         headers, rows := parseCLIOutput(out)
+        if len(headers) == 0 {
+                return nil, nil, fmt.Errorf("no columns returned — table may be empty or output could not be parsed")
+        }
         return headers, rows, nil
 }
 
