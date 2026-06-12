@@ -89,7 +89,7 @@ func dbExecCmd() *cobra.Command {
                         fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Exec"))
                         fmt.Println(ui.Dim("  " + args[0]))
                         fmt.Println()
-                        out, err := s.Exec(args[0])
+                        out, err := s.ExecFormatted(args[0])
                         fmt.Print(out)
                         return err
                 },

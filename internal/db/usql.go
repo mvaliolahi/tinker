@@ -118,7 +118,7 @@ func (s *Session) nativeConnect() (string, []string) {
 }
 
 func (s *Session) Exec(query string) (string, error) {
-        cli, args := s.nativeExec(query)
+        cli, args := s.nativeExec(query, false)
         if cli != "" {
                 if _, err := exec.LookPath(cli); err == nil {
                         out, err := exec.Command(cli, args...).CombinedOutput()
@@ -135,14 +135,42 @@ func (s *Session) Exec(query string) (string, error) {
         return string(out), err
 }
 
-func (s *Session) nativeExec(query string) (string, []string) {
+// ExecFormatted runs a query with tabular formatting (headers + column alignment).
+// Use this for describe, find, and any result set where readability matters.
+func (s *Session) ExecFormatted(query string) (string, error) {
+        cli, args := s.nativeExec(query, true)
+        if cli != "" {
+                if _, err := exec.LookPath(cli); err == nil {
+                        out, err := exec.Command(cli, args...).CombinedOutput()
+                        return string(out), err
+                }
+        }
+
+        // usql always produces formatted output
+        if _, err := exec.LookPath("usql"); err != nil {
+                return "", fmt.Errorf("usql not found — run 'tinker deps' to install")
+        }
+
+        cmd := exec.Command("usql", s.dsnForUSQL(), "-c", query)
+        out, err := cmd.CombinedOutput()
+        return string(out), err
+}
+
+// nativeExec builds the CLI command for executing a query.
+// When formatted is true, the command includes flags for tabular output (headers, column alignment).
+func (s *Session) nativeExec(query string, formatted bool) (string, []string) {
         switch s.Driver {
         case "sqlite3":
-                // sqlite3 takes the database path as first arg, query as second positional arg
+                // sqlite3 [options] DB_PATH SQL
+                if formatted {
+                        return "sqlite3", []string{"-header", "-column", s.dsnForCLI(), query}
+                }
                 return "sqlite3", []string{s.dsnForCLI(), query}
         case "postgres":
+                // psql always produces formatted output with -c
                 return "psql", []string{s.DSN, "-c", query}
         case "mysql":
+                // mysql always produces formatted output with -e
                 return "mysql", []string{s.DSN, "-e", query}
         default:
                 return "", nil
