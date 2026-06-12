@@ -381,19 +381,57 @@ func (s *Session) countTablesRendered(tableNames []string) (string, error) {
 }
 
 func (s *Session) sizeCLI() (string, error) {
-        var q string
         switch s.Type {
         case "sqlite3":
-                // CLI fallback: just list tables — counting via CLI is impractical
-                return s.Tables()
+                return s.sizeCLISQLite()
         case "postgres":
-                q = "SELECT relname as \"Table\", n_live_tup as \"Rows\" FROM pg_stat_user_tables ORDER BY n_live_tup DESC;"
+                q := "SELECT relname as \"Table\", n_live_tup as \"Rows\" FROM pg_stat_user_tables ORDER BY n_live_tup DESC;"
+                return s.ExecFormatted(q)
         case "mysql":
-                q = "SELECT table_name as \"Table\", table_rows as \"Rows\" FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY table_rows DESC;"
+                q := "SELECT table_name as \"Table\", table_rows as \"Rows\" FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY table_rows DESC;"
+                return s.ExecFormatted(q)
         default:
-                q = "SELECT table_name, table_rows FROM information_schema.tables ORDER BY table_rows DESC;"
+                q := "SELECT table_name, table_rows FROM information_schema.tables ORDER BY table_rows DESC;"
+                return s.ExecFormatted(q)
         }
-        return s.ExecFormatted(q)
+}
+
+// sizeCLISQLite counts rows per table using the sqlite3 CLI.
+// It fetches the table list, then runs SELECT COUNT(*) for each one.
+func (s *Session) sizeCLISQLite() (string, error) {
+        // Get table names via the tablesCLI path
+        tablesOut, err := s.tablesCLI()
+        if err != nil {
+                return "", err
+        }
+
+        // Parse table names (one per line, trimmed)
+        var names []string
+        for _, line := range strings.Split(tablesOut, "\n") {
+                t := strings.TrimSpace(line)
+                if t != "" {
+                        names = append(names, t)
+                }
+        }
+        if len(names) == 0 {
+                return "", nil
+        }
+
+        // Count rows in each table
+        headers := []string{"Table", "Rows"}
+        var dataRows [][]string
+        for _, t := range names {
+                q := fmt.Sprintf("SELECT COUNT(*) FROM %s;", quoteIdent(t))
+                out, err := s.Exec(q)
+                if err != nil {
+                        dataRows = append(dataRows, []string{t, "?"})
+                        continue
+                }
+                count := strings.TrimSpace(out)
+                dataRows = append(dataRows, []string{t, count})
+        }
+
+        return renderTable(headers, dataRows), nil
 }
 
 // Count returns the count of rows in a table. Table name is validated;
