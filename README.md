@@ -85,6 +85,18 @@ tinker db exec "SELECT * FROM users LIMIT 5"  # run SQL (aliases: e, sql)
 tinker db ping                                # test database connectivity
 tinker db size                                # show table row counts
 
+# Database migrations
+tinker db migrate up       # run pending migrations
+tinker db migrate down     # rollback last migration
+tinker db migrate status   # show migration status
+
+# Seed the database
+tinker db seed             # run all .sql files in seed/ directory
+tinker db seed seed/users  # run a specific seed file or directory
+
+# Interactive database browser (TUI)
+tinker db explore          # open full-screen database browser
+
 # Handy shortcuts
 tinker db ls           # same as: tinker db tables
 tinker db desc users   # same as: tinker db describe users
@@ -257,6 +269,68 @@ Tinker scans your `.env` files for database configuration. The following variabl
 | `DB_HOST`, `DB_CONNECTION` | Auto (by value) |
 
 File paths ending in `.db`, `.sqlite`, `.sqlite3` are automatically recognized as SQLite databases.
+
+## Database Migrations
+
+Tinker v0.26+ includes a built-in migration system that tracks applied versions in a `_tinker_migrations` table.
+
+### Migration File Format
+
+Create SQL files in a `migrations/` directory with the naming convention `NNN_description.up.sql` / `NNN_description.down.sql`:
+
+```
+migrations/
+  001_create_users.up.sql
+  001_create_users.down.sql
+  002_create_posts.up.sql
+  002_create_posts.down.sql
+```
+
+### Commands
+
+```bash
+# Run all pending migrations
+tinker db migrate up
+
+# Rollback the last migration
+tinker db migrate down
+
+# Show migration status (applied vs pending)
+tinker db migrate status
+```
+
+Tinker auto-detects your migrations directory by checking `migrations/`, `migrate/`, `db/migrations/`, `sql/migrations/`, `backend/migrations/`, and `backend/migrate/`.
+
+## Database Seeding
+
+Run SQL seed files to populate your database with initial or test data:
+
+```bash
+# Run all .sql files in seed/ directory (alphabetical order)
+tinker db seed
+
+# Run a specific seed file
+tinker db seed seed/users.sql
+
+# Run all .sql files in a directory
+tinker db seed seed/
+```
+
+Seed files are split by semicolons (respecting quoted strings) and executed statement by statement.
+
+## Database Explorer (TUI)
+
+Tinker v0.26+ includes a full-screen interactive database browser built with [Bubble Tea](https://github.com/charmbracelet/bubbletea):
+
+```bash
+tinker db explore
+```
+
+Features:
+- **Table list** — navigate with ↑/k ↓/j, press enter to view data
+- **Data view** — scrollable table showing up to 100 rows with column headers
+- **Schema view** — press `s` to see the CREATE TABLE statement
+- **Navigation** — `esc` to go back, `q` to quit
 
 ## Rich Output
 
@@ -569,10 +643,10 @@ You don't need all of them — only install the tools for the features you use.
 - [x] Custom command support from `[commands]` section
 - [x] Multi-environment support (`tinker --env staging db`)
 - [x] Docker integration — auto-detect docker-compose services
+- [x] `tinker db seed` — run seed files (SQL)
+- [x] `tinker db migrate` — run migrations (up/down/status with version tracking)
+- [x] `tinker db explore` — interactive TUI database browser (Bubble Tea)
 - [ ] Plugin system for custom modules
-- [ ] `tinker db seed` — run seed files
-- [ ] `tinker db migrate` — run migrations
-- [ ] `tinker db explore` — interactive TUI database browser
 - [ ] Native gRPC via grpcurl library (no external binary)
 - [ ] HTTP session persistence (cookies, auth state across requests)
 

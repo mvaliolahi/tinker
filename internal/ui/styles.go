@@ -331,6 +331,12 @@ func Dashboard(cfg DashboardConfig) string {
                 sb.WriteString("\n")
                 sb.WriteString(Hint("tinker db size           Table row counts"))
                 sb.WriteString("\n")
+                sb.WriteString(Hint("tinker db migrate up     Run pending migrations"))
+                sb.WriteString("\n")
+                sb.WriteString(Hint("tinker db seed           Seed the database"))
+                sb.WriteString("\n")
+                sb.WriteString(Hint("tinker db explore        Interactive DB browser"))
+                sb.WriteString("\n")
         }
         if cfg.HasAPI {
                 sb.WriteString(Hint("tinker api GET /users  Call an API endpoint"))

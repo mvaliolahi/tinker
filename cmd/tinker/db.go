@@ -25,6 +25,9 @@ func dbCmd() *cobra.Command {
                 dbExecCmd(),
                 dbPingCmd(),
                 dbSizeCmd(),
+                dbSeedCmd(),
+                dbMigrateCmd(),
+                dbExploreCmd(),
         )
 
         cmd.RunE = func(_ *cobra.Command, _ []string) error {

@@ -13,7 +13,7 @@ import (
 )
 
 // Version is set at build time via -ldflags: -X main.version=$(git describe --tags)
-var version = "0.25.5"
+var version = "0.26.0"
 
 var projectDir string
 var envName string
