@@ -8,16 +8,15 @@ import (
 
 var dbEnvNames = []string{
 	"DATABASE_URL", "DB_URL", "DB_HOST", "DB_CONNECTION",
-	"POSTGRES_URL", "MYSQL_URL", "MONGO_URL", "MONGODB_URI", "SQLITE_PATH",
+	"POSTGRES_URL", "MYSQL_URL", "MONGO_URL", "MONGODB_URI",
+	"DB_PATH", "SQLITE_PATH", "SQLITE_DB",
+	"DB_DATABASE", "DB_NAME",
 }
 
 var dbFilePatterns = []string{".sqlite3", ".sqlite", ".db"}
 
 func (d *Detector) detectDatabase() *DatabaseResult {
-	if path, ok := d.findDBFile(); ok {
-		return &DatabaseResult{Source: path, Type: "sqlite3"}
-	}
-
+	// 1. Check for database env vars
 	for _, name := range dbEnvNames {
 		if v := d.getEnv(name); v != "" {
 			return &DatabaseResult{
@@ -25,6 +24,11 @@ func (d *Detector) detectDatabase() *DatabaseResult {
 				Type:   inferDBType(d.getEnv, name),
 			}
 		}
+	}
+
+	// 2. Scan for .db/.sqlite files in the project directory
+	if path, ok := d.findDBFile(); ok {
+		return &DatabaseResult{Source: path, Type: "sqlite3"}
 	}
 
 	return nil
@@ -51,6 +55,8 @@ func (d *Detector) findDBFile() (string, bool) {
 
 func inferDBType(get func(string) string, primary string) string {
 	v := strings.ToLower(get(primary))
+
+	// URL-style connection strings
 	switch {
 	case strings.HasPrefix(v, "postgres://"), strings.HasPrefix(v, "postgresql://"):
 		return "postgres"
@@ -60,6 +66,13 @@ func inferDBType(get func(string) string, primary string) string {
 		return "mongodb"
 	}
 
+	// File paths — SQLite
+	if strings.HasSuffix(v, ".db") || strings.HasSuffix(v, ".sqlite") ||
+		strings.HasSuffix(v, ".sqlite3") {
+		return "sqlite3"
+	}
+
+	// Port-based inference
 	port := get("DB_PORT")
 	switch port {
 	case "5432":
@@ -77,6 +90,19 @@ func inferDBType(get func(string) string, primary string) string {
 	}
 	if strings.Contains(v, "3306") {
 		return "mysql"
+	}
+
+	// Env var name heuristics
+	name := strings.ToUpper(primary)
+	switch {
+	case strings.Contains(name, "POSTGRES") || strings.Contains(name, "PG"):
+		return "postgres"
+	case strings.Contains(name, "MYSQL"):
+		return "mysql"
+	case strings.Contains(name, "MONGO"):
+		return "mongodb"
+	case strings.Contains(name, "SQLITE") || strings.Contains(name, "DB_PATH"):
+		return "sqlite3"
 	}
 
 	return "unknown"
