@@ -13,7 +13,7 @@ require (
 	github.com/tidwall/gjson v1.18.0
 	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/term v0.44.0
-	modernc.org/sqlite v1.37.1
+	modernc.org/sqlite v1.34.5
 )
 
 require (
