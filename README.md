@@ -1,8 +1,36 @@
-# Tinker 🛠️
+<p align="center">
+  <img src="https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat-square&logo=go" alt="Go Version">
+  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License">
+  <img src="https://img.shields.io/github/v/tag/mvaliolahi/tinker?style=flat-square&label=version" alt="Version">
+  <img src="https://img.shields.io/github/actions/workflow/status/mvaliolahi/tinker/ci.yml?style=flat-square&label=CI" alt="CI">
+</p>
 
-A project-aware CLI for database, API, and gRPC interaction — inspired by Laravel Tinker, built for Go (and any language).
+<h1 align="center">Tinker</h1>
 
-Tinker comes with **built-in database drivers** (PostgreSQL, MySQL) for zero-dependency one-shot queries, and composes best-in-class open source tools (`usql`, `httpie`/`curlie`, `grpcurl`/`evans`) for interactive sessions. It reads your project's `tinker.toml` and `.env` to automatically configure connections, so you can jump straight into working with your project.
+<p align="center">
+  <strong>A project-aware CLI for database, API &amp; gRPC interaction</strong><br>
+  <em>Inspired by Laravel Tinker — built for Go, works with any language</em>
+</p>
+
+<p align="center">
+  <a href="#installation">Install</a> &middot;
+  <a href="#quick-start">Quick Start</a> &middot;
+  <a href="#configuration">Configuration</a> &middot;
+  <a href="#commands">Commands</a> &middot;
+  <a href="#contributing">Contribute</a>
+</p>
+
+---
+
+Tinker comes with **built-in database drivers** (PostgreSQL, MySQL) for zero-dependency one-shot queries, and composes best-in-class open source tools (`usql`, `curlie`, `grpcurl`/`evans`) for interactive sessions. It reads your project's `tinker.toml` and `.env` to automatically configure connections — so you can jump straight into working with your project.
+
+```bash
+cd your-project
+tinker init      # scans .env, specs, protos, compose files → tinker.toml
+tinker db tables  # works instantly — no CLI tools needed for Postgres/MySQL
+tinker api GET /users
+tinker grpc list
+```
 
 ## Why Tinker?
 
@@ -11,215 +39,253 @@ If you've used Laravel Tinker, you know the workflow: open a shell, query the da
 **Tinker takes a different approach.** Instead of trying to be a REPL for Go code, it:
 
 1. **Reads your project's existing config** (`.env`, `tinker.toml`) — no wrapper abstractions
-2. **Composes proven OSS tools** — `usql` for DB, `httpie` for HTTP, `evans`/`grpcurl` for gRPC
+2. **Composes proven OSS tools** — `usql` for DB, `curlie` for HTTP, `evans`/`grpcurl` for gRPC
 3. **Defines a simple contract** — any project that implements `tinker.toml` gets the full experience
 4. **Works with any language** — not just Go! Any project with a `.env` and `tinker.toml` works
 
-## Quick Start
+## Installation
 
-### Install
+### One-line install (recommended)
 
-**One-line install (recommended) — installs binary + configures PATH:**
+Installs the binary and configures your PATH:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mvaliolahi/tinker/main/install.sh | bash
 ```
 
-**Or manually with Go:**
+### Install with Go
 
 ```bash
 go install github.com/mvaliolahi/tinker/cmd/tinker@latest
-# Then add to PATH (if not already):
-export PATH="$(go env GOPATH)/bin:$PATH"
 ```
 
-### Initialize
+Make sure `$GOPATH/bin` (or `$HOME/go/bin`) is in your `PATH`.
+
+### Homebrew
+
+```bash
+brew tap mvaliolahi/tap
+brew install tinker
+```
+
+## Quick Start
+
+### 1. Initialize
 
 ```bash
 cd your-project
 tinker init
 ```
 
-Tinker will scan your project for:
+Tinker scans your project and generates a `tinker.toml` by detecting:
+
 - `.env` files with `DATABASE_URL`, `DB_PATH`, `API_BASE_URL`, `GRPC_ADDR`, etc.
-- OpenAPI/Swagger spec files
+- OpenAPI / Swagger spec files (`openapi.yaml`, `swagger.json`, …)
 - `.proto` directories
 - SQLite database files (`.db`, `.sqlite`, `.sqlite3`)
 - Docker Compose files
 
-And generate a `tinker.toml`:
-
-```toml
-# tinker.toml
-[database]
-source = "env:DATABASE_URL"
-type = "postgres"
-
-[api]
-base_url = "env:API_BASE_URL"
-spec = "openapi.yaml"
-auth = "env:API_TOKEN"
-auth_type = "bearer"
-
-[grpc]
-addr = "env:GRPC_ADDR"
-proto_dir = "./proto"
-reflection = true
-```
-
-### Use
+### 2. Run
 
 ```bash
-# Open interactive database session (usql)
-tinker db
+tinker db tables       # list tables — works out of the box for Postgres/MySQL
+tinker db explore      # full-screen TUI database browser
+tinker api endpoints   # list API endpoints from your OpenAPI spec
+tinker api GET /users  # call an endpoint
+```
 
-# Database queries (with handy shortcuts)
-tinker db tables                              # list all tables (alias: ls)
-tinker db describe users                      # show table schema (alias: desc)
-tinker db indexes users                       # show table indexes (alias: idx)
-tinker db schema users                        # show CREATE TABLE statement (alias: s)
-tinker db count users                         # count rows (alias: c)
-tinker db count users "status='active'"       # count with WHERE clause
-tinker db find users 1                        # find row by ID (alias: f)
-tinker db exec "SELECT * FROM users LIMIT 5"  # run SQL (aliases: e, sql)
-tinker db ping                                # test database connectivity
-tinker db size                                # show table row counts
+That's it. No manual configuration needed for most projects.
 
-# Database migrations
-tinker db migrate up       # run pending migrations
-tinker db migrate down     # rollback last migration
-tinker db migrate status   # show migration status
+## Commands
 
-# Seed the database
-tinker db seed             # run all .sql files in seed/ directory
-tinker db seed seed/users  # run a specific seed file or directory
+### Database
 
-# Interactive database browser (TUI)
-tinker db explore          # open full-screen database browser
+| Command | Alias | Description |
+|---------|-------|-------------|
+| `tinker db tables` | `ls` | List all tables |
+| `tinker db describe <table>` | `desc` | Show column schema |
+| `tinker db indexes <table>` | `idx` | Show table indexes |
+| `tinker db schema <table>` | `s` | Show `CREATE TABLE` statement |
+| `tinker db count <table> [where]` | `c` | Count rows (optional `WHERE`) |
+| `tinker db find <table> <id>` | `f` | Find a row by ID |
+| `tinker db exec "<sql>"` | `e`, `sql` | Run arbitrary SQL |
+| `tinker db ping` | | Test database connectivity |
+| `tinker db size` | | Show row counts for all tables |
+| `tinker db connect` | | Open interactive DB session (`usql`/`pgcli`/`mycli`/`litecli`) |
+| `tinker db explore` | | Full-screen TUI database browser |
 
-# Handy shortcuts
-tinker db ls           # same as: tinker db tables
-tinker db desc users   # same as: tinker db describe users
-tinker db idx users    # same as: tinker db indexes users
-tinker db s users      # same as: tinker db schema users
-tinker db c users      # same as: tinker db count users
-tinker db f users 1    # same as: tinker db find users 1
-tinker db sql "SELECT" # same as: tinker db exec "SELECT 1"
+#### Migrations
 
-# API endpoints (from OpenAPI spec)
-tinker api endpoints                         # list all endpoints (alias: ep)
-tinker api endpoints --tag users             # filter by tag
-tinker api explore                           # interactive API explorer
+Tinker includes a built-in migration system that tracks applied versions in a `_tinker_migrations` table.
 
-# Call API endpoints
+```bash
+tinker db migrate up      # run pending migrations
+tinker db migrate down    # rollback the last migration
+tinker db migrate status  # show applied vs. pending
+```
+
+Migration files follow the `NNN_description.up.sql` / `NNN_description.down.sql` convention:
+
+```
+migrations/
+  001_create_users.up.sql
+  001_create_users.down.sql
+  002_create_posts.up.sql
+  002_create_posts.down.sql
+```
+
+The migrations directory is auto-detected (`migrations/`, `db/migrations/`, `backend/migrations/`, …) or configured explicitly:
+
+```toml
+[database]
+migrate_dir = "db/migrations"
+```
+
+#### Seeding
+
+```bash
+tinker db seed                # run all .sql files in seed/ directory
+tinker db seed seed/users.sql # run a specific seed file
+tinker db seed fixtures/      # run all .sql files in a directory
+```
+
+Seed files are split by semicolons (respecting quoted strings and `--` comments) and executed statement by statement. The seed directory is auto-detected or configured:
+
+```toml
+[database]
+seed_dir = "db/seed"
+```
+
+### API
+
+```bash
+tinker api endpoints                # list all endpoints (alias: ep)
+tinker api endpoints --tag users    # filter by tag
+tinker api explore                  # interactive API explorer
+
+# Call endpoints directly
 tinker api GET /users
 tinker api POST /users '{"name": "Ali"}'
 tinker api PUT /users/1 '{"name": "Updated"}'
 tinker api DELETE /users/1
 
-# gRPC interactions
-tinker grpc                    # Interactive REPL (evans)
-tinker grpc list               # List services
-tinker grpc describe UserService
-tinker grpc call UserService/GetUser '{"id": 1}'
-
-# Custom commands (from [commands] section)
-tinker cmd migrate             # run custom migrate command
-tinker cmd seed                # run custom seed command
-tinker cmd test                # run custom test command
-tinker cmd list                # list available commands
-
-# Multi-environment support
-tinker --env staging db        # use staging environment
-tinker --env production db ping
-tinker env list                # list available environments
-tinker env show staging        # show staging overrides
-
-# Docker Compose
-tinker docker                  # show Docker Compose info
-tinker docker list             # list services (alias: ls)
-
-# Configuration
-tinker config show             # display resolved configuration
-tinker config validate         # validate tinker.toml
-
-# Run one-off Go code in project context
-tinker run 'fmt.Println("Hello from tinker!")'
-
-# Run Makefile targets
-tinker make build
-tinker make test
-tinker make list               # list available targets
-
-# Manage dependencies
-tinker deps list               # check what's installed
-tinker deps install            # install missing tools
+# Filter responses
+tinker api GET /users -q "data.0.name"            # gjson path (no jq needed)
+tinker api GET /users -q '.[] | select(.active)'  # complex jq (falls back to jq CLI)
 ```
 
-## The Contract
+### gRPC
+
+```bash
+tinker grpc                           # Interactive REPL (evans)
+tinker grpc list                      # List services
+tinker grpc describe UserService       # Describe a service
+tinker grpc call UserService/GetUser '{"id": 1}'
+```
+
+### Custom Commands
+
+Define project-specific commands in `tinker.toml`:
+
+```toml
+[commands]
+migrate = "go run ./cmd/migrate"
+seed    = "go run ./cmd/seed"
+test    = "go test ./..."
+lint    = "golangci-lint run"
+dev     = "air"
+build   = "go build -o bin/app ./cmd/app"
+```
+
+```bash
+tinker cmd migrate          # run a custom command
+tinker cmd test -v -run X  # append extra arguments
+tinker cmd list             # list available commands
+```
+
+Commands are executed via your system shell, so pipes, redirects, and shell features work out of the box.
+
+### Multi-Environment
+
+```bash
+tinker --env staging db ping       # use staging configuration
+tinker --env production db tables  # use production configuration
+tinker env list                    # list available environments
+tinker env show staging            # show staging overrides
+```
+
+### Other Commands
+
+```bash
+tinker              # dashboard — project overview with detected services
+tinker config show  # display resolved configuration
+tinker docker list  # list Docker Compose services
+tinker deps list    # check which companion tools are installed
+tinker deps install # install missing tools
+tinker make build   # run a Makefile target
+tinker make list    # list available Makefile targets
+tinker version      # print version
+tinker completion   # generate shell completions (bash, zsh, fish, powershell)
+```
+
+## Configuration
+
+### `tinker.toml` — Full Spec
 
 The `tinker.toml` file is Tinker's contract with your project. It's declarative, minimal, and language-agnostic.
 
-### Full Spec
-
 ```toml
+# ── Database ──────────────────────────────────────────────
 [database]
-# How to get the connection string:
-#   "env:VAR_NAME" — read from environment variable (supports .env)
-#   "postgres://user:pass@host:5432/db" — direct DSN
+# Connection string source:
+#   "env:VAR_NAME"  — read from environment variable (supports .env files)
+#   "postgres://…"  — direct DSN
 source = "env:DATABASE_URL"
-# Database type: postgres, mysql, sqlite3, sqlserver, mongodb
+# Database type: postgres | mysql | sqlite3
 type = "postgres"
 # Override the driver name (optional)
 driver = ""
-# Migration directory (relative to project root, optional)
-# If not set, Tinker auto-detects: migrations/, db/migrations/, etc.
+# Migration directory (relative to project root, auto-detected if not set)
 migrate_dir = "migrations"
-# Seed directory (relative to project root, optional)
-# If not set, Tinker auto-detects: seed/, db/seed/, etc.
+# Seed directory (relative to project root, auto-detected if not set)
 seed_dir = "seed"
 
+# ── API ───────────────────────────────────────────────────
 [api]
-# Base URL for API calls
-base_url = "env:API_BASE_URL"
-# Path to OpenAPI/Swagger spec (optional — enables autocomplete + explore)
-spec = "openapi.yaml"
-# Auth token source
-auth = "env:API_TOKEN"
-# Auth type: bearer, basic, api_key, or raw
-auth_type = "bearer"
-# Additional default headers
-[api.headers]
+base_url  = "env:API_BASE_URL"
+spec      = "openapi.yaml"      # OpenAPI/Swagger spec (optional)
+auth      = "env:API_TOKEN"     # Auth token source
+auth_type = "bearer"            # bearer | basic | api_key | raw
+
+[api.headers]                    # Additional default headers
 X-Custom-Header = "value"
 
+# ── gRPC ──────────────────────────────────────────────────
 [grpc]
-# gRPC server address
-addr = "env:GRPC_ADDR"
-# Directory containing .proto files
-proto_dir = "./proto"
-# Enable gRPC server reflection
+addr       = "env:GRPC_ADDR"
+proto_dir  = "./proto"
 reflection = true
 
-# Custom project commands
+# ── Custom Commands ───────────────────────────────────────
 [commands]
 migrate = "go run ./cmd/migrate"
-seed = "go run ./cmd/seed"
-test = "go test ./..."
+seed    = "go run ./cmd/seed"
+test    = "go test ./..."
 
-# Multi-environment overrides
+# ── Multi-Environment ─────────────────────────────────────
 [envs.staging.database]
 source = "env:STAGING_DATABASE_URL"
 
 [envs.staging.api]
 base_url = "env:STAGING_API_BASE_URL"
-auth = "env:STAGING_API_TOKEN"
+auth     = "env:STAGING_API_TOKEN"
 
 [envs.production.database]
 source = "env:PRODUCTION_DATABASE_URL"
 
 [envs.production.api]
 base_url = "env:PRODUCTION_API_BASE_URL"
-auth = "env:PRODUCTION_API_TOKEN"
+auth     = "env:PRODUCTION_API_TOKEN"
 ```
 
 ### Environment Variable Resolution
@@ -237,33 +303,17 @@ API_TOKEN=secret-token
 # tinker.toml
 [database]
 source = "env:DATABASE_URL"
-type = "postgres"
+type   = "postgres"
 
 [api]
-base_url = "env:API_BASE_URL"
-auth = "env:API_TOKEN"
+base_url  = "env:API_BASE_URL"
+auth      = "env:API_TOKEN"
 auth_type = "bearer"
 ```
 
-## Native Database Drivers
-
-Tinker v0.23+ includes **pure Go database drivers** compiled into the binary for PostgreSQL and MySQL:
-
-| Driver | Package | Supports |
-|--------|---------|----------|
-| **PostgreSQL** | `jackc/pgx/v5` | All one-shot queries |
-| **MySQL** | `go-sql-driver/mysql` | All one-shot queries |
-| **SQLite** | `sqlite3`/`litecli`/`usql` | Queries via CLI tools |
-
-**This means:**
-- `tinker db ls`, `tinker db desc`, `tinker db c`, `tinker db f`, `tinker db sql` work for PostgreSQL and MySQL **without any external CLI tools installed**
-- SQLite queries use CLI tools (`sqlite3`/`litecli`/`usql`) — all one-shot commands (`tables`, `describe`, `indexes`, `schema`, `count`, `find`, `exec`, `ping`, `size`) are fully supported
-- Cross-compilation works everywhere (pure Go, no CGO)
-- External CLIs (`litecli`, `pgcli`, `mycli`, `usql`) are needed for **interactive sessions** (`tinker db connect`)
-
 ### Auto-Detected Environment Variables
 
-Tinker scans your `.env` files for database configuration. The following variables are detected automatically:
+Tinker scans your `.env` files for database configuration. The following variables are recognized automatically:
 
 | Variable | Inferred Type |
 |----------|--------------|
@@ -276,414 +326,155 @@ Tinker scans your `.env` files for database configuration. The following variabl
 
 File paths ending in `.db`, `.sqlite`, `.sqlite3` are automatically recognized as SQLite databases.
 
-## Database Migrations
+## Native Database Drivers
 
-Tinker v0.26+ includes a built-in migration system that tracks applied versions in a `_tinker_migrations` table.
+Tinker includes **pure Go database drivers** compiled into the binary — no external CLI tools needed for one-shot queries on PostgreSQL and MySQL:
 
-### Migration File Format
+| Driver | Package | Supports |
+|--------|---------|----------|
+| **PostgreSQL** | `jackc/pgx/v5` | All one-shot queries + `db explore` TUI |
+| **MySQL** | `go-sql-driver/mysql` | All one-shot queries + `db explore` TUI |
+| **SQLite** | `sqlite3`/`litecli`/`usql` | Queries via CLI tools |
 
-Create SQL files in a `migrations/` directory with the naming convention `NNN_description.up.sql` / `NNN_description.down.sql`:
+**What this means in practice:**
 
-```
-migrations/
-  001_create_users.up.sql
-  001_create_users.down.sql
-  002_create_posts.up.sql
-  002_create_posts.down.sql
-```
-
-### Commands
-
-```bash
-# Run all pending migrations
-tinker db migrate up
-
-# Rollback the last migration
-tinker db migrate down
-
-# Show migration status (applied vs pending)
-tinker db migrate status
-```
-
-Tinker auto-detects your migrations directory by checking `migrations/`, `migrate/`, `db/migrations/`, `db/migrate/`, `sql/migrations/`, `backend/migrations/`, and `backend/migrate/`. You can also configure it explicitly in `tinker.toml`:
-
-```toml
-[database]
-source = "env:DATABASE_URL"
-type = "postgres"
-migrate_dir = "db/migrations"
-```
-
-## Database Seeding
-
-Run SQL seed files to populate your database with initial or test data:
-
-```bash
-# Run all .sql files in seed/ directory (alphabetical order)
-tinker db seed
-
-# Run a specific seed file
-tinker db seed seed/users.sql
-
-# Run all .sql files in a directory
-tinker db seed seed/
-```
-
-Seed files are split by semicolons (respecting quoted strings) and executed statement by statement.
-
-You can configure the seed directory in `tinker.toml`:
-
-```toml
-[database]
-source = "env:DATABASE_URL"
-type = "postgres"
-seed_dir = "db/seed"
-```
-
-If not configured, Tinker auto-detects by checking `seed/`, `seeds/`, `db/seed/`, `db/seeds/`, `sql/seed/`, `backend/seed/`, and `backend/seeds/`.
+- `tinker db tables`, `describe`, `count`, `find`, `exec`, `ping`, `size`, `explore` — all work for PostgreSQL and MySQL **without any external tools installed**
+- SQLite uses CLI tools (`sqlite3`, `litecli`, or `usql`) for all queries — still fully supported, just not zero-dependency
+- Cross-compilation works everywhere (pure Go, no CGO)
+- External CLIs (`litecli`, `pgcli`, `mycli`, `usql`) are only needed for **interactive sessions** (`tinker db connect`)
 
 ## Database Explorer (TUI)
 
-Tinker v0.26+ includes a full-screen interactive database browser built with [Bubble Tea](https://github.com/charmbracelet/bubbletea):
+A full-screen interactive database browser built with [Bubble Tea](https://github.com/charmbracelet/bubbletea):
 
 ```bash
 tinker db explore
 ```
 
-Features:
-- **Table list** — navigate with ↑/k ↓/j, press enter to view data
-- **Data view** — scrollable table showing up to 100 rows with column headers
-- **Schema view** — press `s` to see the CREATE TABLE statement
-- **Navigation** — `esc` to go back, `q` to quit
+| Key | Action |
+|-----|--------|
+| `↑`/`k`, `↓`/`j` | Navigate table list |
+| `Enter` | View table data (up to 100 rows) |
+| `s` | View `CREATE TABLE` statement |
+| `Esc` / `Backspace` | Go back to table list |
+| `q` | Quit |
+
+Works with native drivers (PostgreSQL, MySQL) and CLI fallback (SQLite).
 
 ## Rich Output
 
-Tinker v0.24+ includes professional-grade output formatting:
+Tinker renders professional-grade terminal output:
 
 | Feature | Package | What it does |
 |---------|---------|-------------|
-| **Table Rendering** | `jedib0t/go-pretty/v6` | Beautiful aligned tables for `db describe`, `db indexes`, `db size`, `db find`, `db exec` |
-| **Syntax Highlighting** | `alecthomas/chroma/v2` | SQL highlighting for `db schema`, JSON highlighting for `api` responses, 500+ lexers |
-| **JSON Filtering** | `tidwall/gjson` | Native `--jq` filter for `tinker api` — no `jq` binary needed for simple paths like `data.users.0.name` |
-
-**Before (tab-separated):**
-```
-Column  Type    Nullable  Default  Key
-id      INTEGER NOT NULL  NULL     PK
-name    TEXT    NULL      NULL
-```
-
-**After (go-pretty table):**
-```
-COLUMN   TYPE     NULLABLE   DEFAULT   KEY
-id       INTEGER  NOT NULL   NULL      PK
-name     TEXT     NULL       NULL
-```
-
-The `--jq` flag now tries **gjson** first (native Go), then falls back to `jq` CLI for complex expressions:
-```bash
-# Simple path — gjson (no jq binary needed)
-tinker api GET /users -q "data.0.name"
-
-# Complex expression — falls back to jq CLI
-tinker api GET /users -q '.[] | select(.active)'
-```
-
-## OpenAPI Spec Integration
-
-Tinker v0.25+ can parse your OpenAPI/Swagger spec to provide endpoint discovery and an interactive API explorer.
-
-### List Endpoints
-
-```bash
-# List all endpoints from your spec
-tinker api endpoints
-
-# Filter by tag
-tinker api endpoints --tag users
-
-# Shortcut
-tinker api ep
-```
-
-Output:
-```
-  API  Endpoints
-  spec: My API v2.1.0
-  total: 12 endpoint(s)
-
-  users
-    GET    /users                         — List all users
-    POST   /users                         — Create a user
-    GET    /users/{id}                    — Get user by ID
-    PUT    /users/{id}                    — Update user
-    DELETE /users/{id}                    — Delete user
-```
-
-### Interactive API Explorer
-
-```bash
-tinker api explore
-```
-
-Provides a REPL for browsing and calling endpoints:
-```
-  API  API Explorer
-  base: http://localhost:8080
-  spec: My API v2.1.0
-  endpoints: 12 available
-
-  Commands:
-    list              List all endpoints
-    call <method> <path> [body]   Call an endpoint
-    find <keyword>    Search endpoints
-    tags              List tags
-    quit / q          Exit
-
-tinker/api> GET /users/1
-```
-
-### Spec Configuration
-
-Add the `spec` field to your `[api]` section:
-
-```toml
-[api]
-base_url = "env:API_BASE_URL"
-spec = "openapi.yaml"    # or swagger.json, openapi.yml
-auth = "env:API_TOKEN"
-auth_type = "bearer"
-```
-
-Supports both YAML and JSON formats (OpenAPI 3.x and Swagger 2.x).
-
-## Multi-Environment Support
-
-Tinker v0.25+ supports environment-specific configuration overrides via the `[envs.*]` sections in `tinker.toml`.
-
-### Configuration
-
-```toml
-# Base configuration (default environment)
-[database]
-source = "env:DATABASE_URL"
-type = "postgres"
-
-[api]
-base_url = "env:API_BASE_URL"
-auth = "env:API_TOKEN"
-auth_type = "bearer"
-
-# Staging overrides
-[envs.staging.database]
-source = "env:STAGING_DATABASE_URL"
-
-[envs.staging.api]
-base_url = "env:STAGING_API_BASE_URL"
-auth = "env:STAGING_API_TOKEN"
-
-# Production overrides
-[envs.production.database]
-source = "env:PRODUCTION_DATABASE_URL"
-
-[envs.production.api]
-base_url = "env:PRODUCTION_API_BASE_URL"
-auth = "env:PRODUCTION_API_TOKEN"
-```
-
-### Usage
-
-```bash
-# Default environment
-tinker db ping
-
-# Staging environment
-tinker --env staging db ping
-
-# Production environment
-tinker --env production db tables
-
-# List available environments
-tinker env list
-
-# Show overrides for an environment
-tinker env show staging
-```
-
-Only the fields you specify in the override section are changed; everything else inherits from the base configuration.
-
-## Custom Commands
-
-Tinker v0.25+ supports custom project commands via the `[commands]` section in `tinker.toml`.
-
-### Configuration
-
-```toml
-[commands]
-migrate = "go run ./cmd/migrate"
-seed = "go run ./cmd/seed"
-test = "go test ./..."
-lint = "golangci-lint run"
-dev = "air"
-build = "go build -o bin/app ./cmd/app"
-```
-
-### Usage
-
-```bash
-# Run a custom command
-tinker cmd migrate
-tinker cmd seed
-tinker cmd test
-
-# With extra arguments (appended to the command)
-tinker cmd test -v -run TestUser
-
-# List available commands
-tinker cmd list
-```
-
-Commands are executed via your system shell, so they can include pipes, redirects, and any shell features.
-
-## Docker Compose Integration
-
-Tinker v0.25+ auto-detects Docker Compose files and extracts service information.
-
-### Usage
-
-```bash
-# Show Docker Compose info
-tinker docker
-
-# List services
-tinker docker list
-```
-
-Output:
-```
-  Docker Compose Services
-  file: docker-compose.yml
-
-  db                   postgres:15       ports: 5432:5432
-    detected: [DB database]
-  api                  myapp:latest      ports: 8080:8080
-    detected: [API api]
-```
-
-### Auto-Detection
-
-`tinker init` automatically detects:
-- `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, `compose.yaml`
-- Environment-specific compose files (`docker-compose.staging.yml`, etc.)
-- Service types (database, API, gRPC) based on image names, service names, and environment variables
+| **Table rendering** | `jedib0t/go-pretty/v6` | Aligned tables for `describe`, `indexes`, `size`, `find`, `exec` |
+| **Syntax highlighting** | `alecthomas/chroma/v2` | SQL highlighting for `db schema`, JSON highlighting for `api` responses |
+| **JSON filtering** | `tidwall/gjson` | Native `--jq` filter — no `jq` binary needed for simple paths |
+| **Styled UI** | `charmbracelet/lipgloss` | Colored badges, status indicators, visual hierarchy |
 
 ## Prerequisites
 
-Tinker's one-shot DB commands for PostgreSQL and MySQL work out of the box with built-in drivers. SQLite requires a CLI tool (`sqlite3`/`litecli`/`usql`) for all queries. For **interactive sessions**, Tinker orchestrates existing tools. **`tinker init` auto-installs the ones you need** based on what's detected in your project. You can also manage them manually:
+PostgreSQL and MySQL one-shot commands work out of the box with built-in drivers. For SQLite queries and **interactive sessions**, Tinker orchestrates companion tools. **`tinker deps install`** auto-installs the ones you need.
 
-```bash
-# Check which tools are installed
-tinker deps list
-
-# Install all missing tools
-tinker deps install
-```
-
-| Tool | Purpose | Required? | Manual Install |
-|------|---------|-----------|----------|
-| **sqlite3** | SQLite queries + REPL | SQLite projects | System package (`apt install sqlite3`, `brew install sqlite`) |
-| **litecli** | SQLite REPL (syntax highlighting) | Interactive only | `pip install litecli` |
-| **pgcli** | PostgreSQL REPL (syntax highlighting) | Interactive only | `pip install pgcli` |
-| **mycli** | MySQL REPL (syntax highlighting) | Interactive only | `pip install mycli` |
-| **usql** | Database REPL (universal fallback) | Interactive only | `go install github.com/xo/usql@latest` |
-| **httpie** | HTTP client | API feature | `pip install httpie` or `brew install httpie` |
-| **curlie** | HTTP client (alt) | API feature | `go install github.com/rs/curlie@latest` |
+| Tool | Purpose | Required for | Install |
+|------|---------|-------------|---------|
+| **sqlite3** | SQLite queries | SQLite projects | `apt install sqlite3` / `brew install sqlite` |
+| **litecli** | SQLite REPL (syntax highlighting) | Interactive | `pip install litecli` |
+| **pgcli** | PostgreSQL REPL | Interactive | `pip install pgcli` |
+| **mycli** | MySQL REPL | Interactive | `pip install mycli` |
+| **usql** | Universal DB REPL | Interactive | `go install github.com/xo/usql@latest` |
+| **curlie** | HTTP client | API feature | `go install github.com/rs/curlie@latest` |
 | **evans** | gRPC REPL | gRPC feature | `go install github.com/ktr0731/evans@latest` |
 | **grpcurl** | gRPC client | gRPC feature | `go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest` |
 
-You don't need all of them — only install the tools for the features you use.
+You don't need all of them — only the tools for features you use.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────┐
-│            tinker CLI (Go)              │
-├──────────────┬───────────┬──────────────┤
-│  DB Module   │ API Module│ gRPC Module  │
-│  (native +   │ (native + │ (grpcurl/    │
-│   CLI)       │  CLI)     │  evans)      │
-├──────────────┴───────────┴──────────────┤
-│  OpenAPI Parser │ Commands │ Envs │ Docker│
-├─────────────────────────────────────────┤
-│           Config Layer                  │
-│    (tinker.toml + .env resolver)        │
-├─────────────────────────────────────────┤
-│        Auto-Detection Engine            │
-│    (tinker init scans project)          │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│              tinker CLI (pure Go)                │
+├───────────────┬──────────────┬──────────────────┤
+│  DB Module    │  API Module  │  gRPC Module     │
+│  (pgx/mysql   │  (native +   │  (grpcurl/       │
+│   + CLI)      │   CLI)       │   evans)         │
+├───────────────┴──────────────┴──────────────────┤
+│  OpenAPI Parser │ Commands │ Envs │ Docker      │
+├─────────────────────────────────────────────────┤
+│                Config Layer                      │
+│         (tinker.toml + .env resolver)            │
+├─────────────────────────────────────────────────┤
+│           Auto-Detection Engine                  │
+│          (tinker init scans project)             │
+└─────────────────────────────────────────────────┘
 ```
 
 **Design principles:**
+
 - **Native first, CLI fallback** — Built-in pure Go drivers for PostgreSQL/MySQL queries; external CLIs for SQLite and interactive sessions
-- **Compose, don't reimplement** — Shell out to httpie/evans for interactive sessions, don't rewrite them
-- **Contract is declarative** — `tinker.toml`, not a Go interface
+- **Compose, don't reimplement** — Shell out to best-in-class tools for interactive sessions instead of rewriting them
+- **Contract is declarative** — `tinker.toml` is a simple config file, not a Go interface
 - **Auto-detect first, configure second** — `tinker init` should work for 80% of cases
 - **Cross-language by default** — Works with any project that has a `.env` and `tinker.toml`
-- **Beautiful terminal UI** — Styled output with [lipgloss](https://github.com/charmbracelet/lipgloss), colored badges, and clear visual hierarchy
-- **Spec-driven API exploration** — Parse OpenAPI specs for endpoint discovery and interactive exploration
 
 ## Comparison
 
-| Feature | Laravel Tinker | gore | Tinker (this project) |
-|---------|---------------|------|----------------------|
+| Feature | Laravel Tinker | gore | Tinker |
+|---------|:-:|:-:|:-:|
 | Styled TUI | ❌ | ❌ | ✅ lipgloss |
 | Interactive DB session | ✅ Eloquent | ❌ | ✅ usql (raw SQL) |
-| Call API endpoints | ✅ HTTP client | ❌ | ✅ httpie/curlie |
+| Call API endpoints | ✅ | ❌ | ✅ curlie |
 | Call gRPC services | ❌ | ❌ | ✅ evans/grpcurl |
 | Language-agnostic | ❌ PHP only | ❌ Go only | ✅ Any project |
 | Framework-agnostic | ❌ Laravel only | ✅ | ✅ |
-| Execute project code | ✅ Full PHP | ✅ Go | ⚠️ `tinker run` (limited) |
+| Execute project code | ✅ Full PHP | ✅ Go | ⚠️ `tinker run` |
 | Auto-configuration | ✅ | ❌ | ✅ `tinker init` |
-| Persistent state | ✅ | ⚠️ Per eval | ✅ DB session |
 | OpenAPI spec parsing | ❌ | ❌ | ✅ `tinker api endpoints` |
 | Interactive API explorer | ❌ | ❌ | ✅ `tinker api explore` |
 | Multi-environment | ❌ | ❌ | ✅ `tinker --env staging` |
 | Custom commands | ❌ | ❌ | ✅ `tinker cmd <name>` |
+| Built-in migrations | ❌ | ❌ | ✅ `tinker db migrate` |
+| TUI database browser | ❌ | ❌ | ✅ `tinker db explore` |
 | Docker Compose detection | ❌ | ❌ | ✅ `tinker docker` |
 
 ## Roadmap
 
-- [x] Native database drivers (PostgreSQL, MySQL) — no external CLI needed for queries
-- [x] `tinker db index` — show table indexes
-- [x] `tinker db ping` — test connectivity
-- [x] `tinker db size` — table row counts
-- [x] Rich table formatting for describe/indexes output
-- [x] Shell completion (bash, zsh, fish, powershell)
-- [x] Rich table rendering (go-pretty)
-- [x] Syntax highlighting for SQL output (chroma)
-- [x] Native JSON filtering via gjson (--jq without jq binary)
-- [x] OpenAPI spec parsing for API endpoint autocomplete
-- [x] `tinker api explore` — interactive API explorer
-- [x] Custom command support from `[commands]` section
-- [x] Multi-environment support (`tinker --env staging db`)
-- [x] Docker integration — auto-detect docker-compose services
-- [x] `tinker db seed` — run seed files (SQL)
-- [x] `tinker db migrate` — run migrations (up/down/status with version tracking)
-- [x] `tinker db explore` — interactive TUI database browser (Bubble Tea)
+- [x] Native database drivers (PostgreSQL, MySQL)
+- [x] Built-in migrations with version tracking
+- [x] Database seeding
+- [x] Interactive TUI database browser (Bubble Tea)
+- [x] OpenAPI spec parsing & interactive API explorer
+- [x] Multi-environment support
+- [x] Custom commands
+- [x] Docker Compose detection
+- [x] Shell completions (bash, zsh, fish, powershell)
+- [x] Rich output (go-pretty tables, chroma syntax highlighting, gjson filtering)
 - [ ] Plugin system for custom modules
 - [ ] Native gRPC via grpcurl library (no external binary)
 - [ ] HTTP session persistence (cookies, auth state across requests)
 
 ## Contributing
 
-Contributions are welcome! This project is in early development.
+Contributions are welcome! Please follow these steps:
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Make your changes and add tests where applicable
+4. Ensure linting passes (`golangci-lint run ./...`)
+5. Ensure tests pass (`go test ./...`)
+6. Commit with a descriptive message
+7. Open a Pull Request
+
+### Development
+
+```bash
+git clone https://github.com/mvaliolahi/tinker.git
+cd tinker
+go build ./cmd/tinker
+go test ./...
+golangci-lint run ./...
+```
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+[MIT](LICENSE) &copy; Mohammad Valiolahi
