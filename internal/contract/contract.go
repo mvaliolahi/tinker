@@ -32,7 +32,14 @@ func writeDatabase(sb *strings.Builder, d *detect.DatabaseResult) {
         }
         sb.WriteString("[database]\n")
         fmt.Fprintf(sb, "source = %q\n", d.Source)
-        fmt.Fprintf(sb, "type = %q\n\n", d.Type)
+        fmt.Fprintf(sb, "type = %q\n", d.Type)
+        if d.MigrateDir != "" {
+                fmt.Fprintf(sb, "migrate_dir = %q\n", d.MigrateDir)
+        }
+        if d.SeedDir != "" {
+                fmt.Fprintf(sb, "seed_dir = %q\n", d.SeedDir)
+        }
+        sb.WriteString("\n")
 }
 
 func writeAPI(sb *strings.Builder, a *detect.APIResult) {

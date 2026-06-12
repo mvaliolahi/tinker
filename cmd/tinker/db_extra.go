@@ -23,15 +23,18 @@ func dbSeedCmd() *cobra.Command {
                         }
                         defer s.Close()
 
-                        path := "seed"
-                        if len(args) > 0 {
-                                path = args[0]
-                        }
-
-                        // Resolve relative to project root
-                        _, root, err := loadConfig()
+                        cfg, root, err := loadConfig()
                         if err != nil {
                                 return err
+                        }
+
+                        var path string
+                        if len(args) > 0 {
+                                path = args[0]
+                        } else if cfg.Database != nil && cfg.Database.SeedDir != "" {
+                                path = cfg.Database.SeedDir
+                        } else {
+                                path = defaultSeedDir(root)
                         }
                         if !isAbs(path) {
                                 path = root + "/" + path
@@ -50,6 +53,25 @@ func dbSeedCmd() *cobra.Command {
                         return nil
                 },
         }
+}
+
+// defaultSeedDir returns the first seed directory that exists, or "seed" as default.
+func defaultSeedDir(root string) string {
+        candidates := []string{
+                root + "/seed",
+                root + "/seeds",
+                root + "/db/seed",
+                root + "/db/seeds",
+                root + "/sql/seed",
+                root + "/backend/seed",
+                root + "/backend/seeds",
+        }
+        for _, dir := range candidates {
+                if info, err := os.Stat(dir); err == nil && info.IsDir() {
+                        return dir
+                }
+        }
+        return "seed"
 }
 
 func dbMigrateCmd() *cobra.Command {
@@ -212,16 +234,26 @@ func dbExploreCmd() *cobra.Command {
 }
 
 func migrateDir() (string, error) {
-        _, root, err := loadConfig()
+        cfg, root, err := loadConfig()
         if err != nil {
                 return "", err
         }
 
-        // Check common migration directories
+        // Use configured path if set
+        if cfg.Database != nil && cfg.Database.MigrateDir != "" {
+                dir := cfg.Database.MigrateDir
+                if !isAbs(dir) {
+                        dir = root + "/" + dir
+                }
+                return dir, nil
+        }
+
+        // Auto-detect common migration directories
         candidates := []string{
                 root + "/migrations",
                 root + "/migrate",
                 root + "/db/migrations",
+                root + "/db/migrate",
                 root + "/sql/migrations",
                 root + "/backend/migrations",
                 root + "/backend/migrate",

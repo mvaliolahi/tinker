@@ -172,6 +172,12 @@ source = "env:DATABASE_URL"
 type = "postgres"
 # Override the driver name (optional)
 driver = ""
+# Migration directory (relative to project root, optional)
+# If not set, Tinker auto-detects: migrations/, db/migrations/, etc.
+migrate_dir = "migrations"
+# Seed directory (relative to project root, optional)
+# If not set, Tinker auto-detects: seed/, db/seed/, etc.
+seed_dir = "seed"
 
 [api]
 # Base URL for API calls
@@ -299,7 +305,14 @@ tinker db migrate down
 tinker db migrate status
 ```
 
-Tinker auto-detects your migrations directory by checking `migrations/`, `migrate/`, `db/migrations/`, `sql/migrations/`, `backend/migrations/`, and `backend/migrate/`.
+Tinker auto-detects your migrations directory by checking `migrations/`, `migrate/`, `db/migrations/`, `db/migrate/`, `sql/migrations/`, `backend/migrations/`, and `backend/migrate/`. You can also configure it explicitly in `tinker.toml`:
+
+```toml
+[database]
+source = "env:DATABASE_URL"
+type = "postgres"
+migrate_dir = "db/migrations"
+```
 
 ## Database Seeding
 
@@ -317,6 +330,17 @@ tinker db seed seed/
 ```
 
 Seed files are split by semicolons (respecting quoted strings) and executed statement by statement.
+
+You can configure the seed directory in `tinker.toml`:
+
+```toml
+[database]
+source = "env:DATABASE_URL"
+type = "postgres"
+seed_dir = "db/seed"
+```
+
+If not configured, Tinker auto-detects by checking `seed/`, `seeds/`, `db/seed/`, `db/seeds/`, `sql/seed/`, `backend/seed/`, and `backend/seeds/`.
 
 ## Database Explorer (TUI)
 

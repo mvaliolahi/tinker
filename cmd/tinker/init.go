@@ -114,6 +114,12 @@ func printDetection(r *detect.Result) {
                 fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Database"))
                 fmt.Println(ui.KeyValue("type", r.Database.Type))
                 fmt.Println(ui.KeyValue("source", r.Database.Source))
+                if r.Database.MigrateDir != "" {
+                        fmt.Println(ui.KeyValue("migrate_dir", r.Database.MigrateDir))
+                }
+                if r.Database.SeedDir != "" {
+                        fmt.Println(ui.KeyValue("seed_dir", r.Database.SeedDir))
+                }
                 fmt.Println()
         }
         if r.API != nil {
