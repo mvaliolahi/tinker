@@ -5,6 +5,7 @@ type Config struct {
 	API      *API      `toml:"api"`
 	GRPC     *GRPC     `toml:"grpc"`
 	Log      *Log      `toml:"log"`
+	Plugin   *Plugin   `toml:"plugin"`
 	Commands Commands  `toml:"commands"`
 	Envs     Envs      `toml:"envs"`
 
@@ -42,6 +43,14 @@ type GRPC struct {
 
 type Log struct {
 	Files []string `toml:"files"`
+}
+
+// Plugin holds plugin system configuration.
+type Plugin struct {
+	// Dir is the directory containing script plugins (default: "plugins")
+	Dir string `toml:"dir"`
+	// Enabled controls whether the plugin system is active (default: true)
+	Enabled bool `toml:"enabled"`
 }
 
 type Commands map[string]string

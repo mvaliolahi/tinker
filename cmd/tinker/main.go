@@ -32,7 +32,7 @@ func main() {
 		initCmd(), dbCmd(), apiCmd(), grpcCmd(), logCmd(),
 		runCmd(), makeCmd(), updateCmd(), depsCmd(),
 		configCmd(), versionCmd(), completionCmd(root),
-		envCmd(), commandsCmd(), dockerCmd(),
+		envCmd(), commandsCmd(), dockerCmd(), pluginCmd(),
 	)
 
 	if err := root.Execute(); err != nil {

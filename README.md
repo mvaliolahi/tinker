@@ -177,11 +177,13 @@ tinker api GET /users -q '.[] | select(.active)'  # complex jq (falls back to jq
 ### gRPC
 
 ```bash
+tinker grpc list                      # List services (native — no grpcurl needed)
+tinker grpc describe UserService       # Describe a service (native)
+tinker grpc call UserService/GetUser '{"id": 1}'  # Call a method (requires grpcurl)
 tinker grpc                           # Interactive REPL (evans)
-tinker grpc list                      # List services
-tinker grpc describe UserService       # Describe a service
-tinker grpc call UserService/GetUser '{"id": 1}'
 ```
+
+`list` and `describe` work natively via gRPC server reflection — no external binary needed. `call` requires `grpcurl` for proto serialization.
 
 ### Custom Commands
 
@@ -204,6 +206,44 @@ tinker cmd list             # list available commands
 ```
 
 Commands are executed via your system shell, so pipes, redirects, and shell features work out of the box.
+
+### Plugins
+
+Tinker supports script-based plugins. Place executable scripts in a `plugins/` directory in your project root:
+
+```bash
+plugins/
+  migrate.sh     # becomes: tinker plugin run migrate
+  seed.py        # becomes: tinker plugin run seed
+  deploy.bash    # becomes: tinker plugin run deploy
+```
+
+```bash
+tinker plugin list          # list loaded plugins
+tinker plugin run migrate   # run the migrate script
+tinker plugin run seed --fresh  # pass arguments to the script
+```
+
+Plugins can also register hooks for lifecycle events (pre/post query, request, etc.) via the Go plugin API. Configure the plugin directory in `tinker.toml`:
+
+```toml
+[plugin]
+dir = "plugins"
+enabled = true
+```
+
+### HTTP Session Persistence
+
+API requests automatically persist cookies and auth state across invocations. Session data is stored in `.tinker/session.json` within your project.
+
+```bash
+tinker api POST /auth/login '{"user":"admin","pass":"secret"}'  # cookies saved
+tinker api GET /users                                           # cookies sent automatically
+tinker api session show                                         # view session state
+tinker api session clear                                        # clear persisted state
+```
+
+This means login flows work naturally: authenticate once, then subsequent requests carry the session cookies.
 
 ### Multi-Environment
 
@@ -449,9 +489,9 @@ You don't need all of them — only the tools for features you use.
 - [x] Docker Compose detection
 - [x] Shell completions (bash, zsh, fish, powershell)
 - [x] Rich output (go-pretty tables, chroma syntax highlighting, gjson filtering)
-- [ ] Plugin system for custom modules
-- [ ] Native gRPC via grpcurl library (no external binary)
-- [ ] HTTP session persistence (cookies, auth state across requests)
+- [x] Plugin system for custom modules
+- [x] Native gRPC via grpcurl library (no external binary for list/describe)
+- [x] HTTP session persistence (cookies, auth state across requests)
 
 ## Contributing
 

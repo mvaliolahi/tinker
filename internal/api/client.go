@@ -52,7 +52,7 @@ func (s *Session) Request(method, path, body string, extra map[string]string) (s
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := httpClient.Do(req)
+	resp, err := s.client().Do(req)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return "", fmt.Errorf("request timed out after %s", httpRequestTimeout)
@@ -62,6 +62,11 @@ func (s *Session) Request(method, path, body string, extra map[string]string) (s
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
+
+	// Persist cookies and auth state from the response
+	if s.sessionStore != nil {
+		s.sessionStore.UpdateFromResponse(resp, s.BaseURL)
+	}
 
 	// Try gjson filtering first (native Go, no external dependency)
 	if s.jqFilter != "" {

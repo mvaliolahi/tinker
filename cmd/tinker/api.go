@@ -23,12 +23,13 @@ func apiCmd() *cobra.Command {
 	cmd.AddCommand(
 		apiEndpointsCmd(),
 		apiExploreCmd(),
+		apiSessionCmd(),
 	)
 
 	cmd.RunE = func(_ *cobra.Command, args []string) error {
-		var opts []api.SessionOption
-		if jqFilter != "" {
-			opts = append(opts, api.WithJqFilter(jqFilter))
+		opts, err := apiSessionOpts(jqFilter)
+		if err != nil {
+			return err
 		}
 
 		s, err := newAPISessionWithOpts(opts...)
@@ -162,7 +163,12 @@ func apiExploreCmd() *cobra.Command {
 				return fmt.Errorf("parsing spec: %w", err)
 			}
 
-			s, err := api.NewSession(cfg.API)
+			opts, err := apiSessionOpts("")
+			if err != nil {
+				return err
+			}
+
+			s, err := api.NewSession(cfg.API, opts...)
 			if err != nil {
 				return err
 			}
@@ -172,12 +178,112 @@ func apiExploreCmd() *cobra.Command {
 	}
 }
 
+// apiSessionCmd manages HTTP session state (cookies, auth).
+func apiSessionCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "session",
+		Short: "Manage HTTP session state (cookies, auth)",
+	}
+
+	cmd.AddCommand(
+		&cobra.Command{
+			Use:   "show",
+			Short: "Show current session state",
+			RunE: func(_ *cobra.Command, _ []string) error {
+				_, root, err := loadConfig()
+				if err != nil {
+					return err
+				}
+
+				store, err := api.NewSessionStore(root)
+				if err != nil {
+					fmt.Println(ui.Dim("  No session data"))
+					return nil
+				}
+
+				token, authType := store.GetAuth()
+				headers := store.GetHeaders()
+
+				if token == "" && len(headers) == 0 {
+					fmt.Println(ui.Dim("  No persisted session data"))
+					fmt.Println(ui.Hint("Session state is saved automatically when you make API requests"))
+					return nil
+				}
+
+				fmt.Println()
+				fmt.Println("  " + ui.APILabel() + " " + ui.Bold("Session"))
+				fmt.Println()
+				if token != "" {
+					displayToken := token
+					if len(token) > 20 {
+						displayToken = token[:20] + "..."
+					}
+					fmt.Println(ui.KeyValue("auth", displayToken))
+					fmt.Println(ui.KeyValue("auth_type", authType))
+				}
+				for k, v := range headers {
+					fmt.Println(ui.KeyValue("header:"+k, v))
+				}
+				fmt.Println()
+				return nil
+			},
+		},
+		&cobra.Command{
+			Use:   "clear",
+			Short: "Clear persisted session state",
+			RunE: func(_ *cobra.Command, _ []string) error {
+				_, root, err := loadConfig()
+				if err != nil {
+					return err
+				}
+
+				store, err := api.NewSessionStore(root)
+				if err != nil {
+					fmt.Println(ui.Dim("  No session data to clear"))
+					return nil
+				}
+
+				if err := store.Clear(); err != nil {
+					fmt.Println(ui.Dim("  No session data to clear"))
+					return nil
+				}
+
+				fmt.Println(ui.Success("Session cleared"))
+				return nil
+			},
+		},
+	)
+
+	return cmd
+}
+
 func newAPISessionWithOpts(opts ...api.SessionOption) (*api.Session, error) {
 	cfg, _, err := loadConfig()
 	if err != nil {
 		return nil, err
 	}
 	return api.NewSession(cfg.API, opts...)
+}
+
+// apiSessionOpts builds session options including session persistence.
+func apiSessionOpts(jqFilter string) ([]api.SessionOption, error) {
+	var opts []api.SessionOption
+
+	if jqFilter != "" {
+		opts = append(opts, api.WithJqFilter(jqFilter))
+	}
+
+	// Enable session persistence
+	_, root, err := loadConfig()
+	if err != nil {
+		return opts, nil // session persistence is optional
+	}
+	store, err := api.NewSessionStore(root)
+	if err == nil {
+		opts = append(opts, api.WithSessionStore(store))
+	}
+
+	return opts, nil
 }
 
 func parseAPICall(args []string) (method, path, body string) {
