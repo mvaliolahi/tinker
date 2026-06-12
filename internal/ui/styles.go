@@ -205,8 +205,11 @@ func padRight(s string, width int) string {
 type DashboardConfig struct {
         ProjectDir  string
         HasDB       bool
+        DBInfo      string // e.g. "SQLite • apartment.db" or "Postgres • localhost:5432/mydb"
         HasAPI      bool
+        APIInfo     string // e.g. "localhost:8080"
         HasGRPC     bool
+        GRPCInfo    string // e.g. "localhost:50051"
         HasLog      bool
         MissingDeps int
         Version     string
@@ -233,6 +236,10 @@ func Dashboard(cfg DashboardConfig) string {
                 sb.WriteString(DBLabel())
                 sb.WriteString(" ")
                 sb.WriteString(success.Render("Database"))
+                if cfg.DBInfo != "" {
+                        sb.WriteString(" ")
+                        sb.WriteString(dimStyle.Render("• " + cfg.DBInfo))
+                }
                 sb.WriteString("\n")
         }
         if cfg.HasAPI {
@@ -240,6 +247,10 @@ func Dashboard(cfg DashboardConfig) string {
                 sb.WriteString(APILabel())
                 sb.WriteString(" ")
                 sb.WriteString(success.Render("HTTP API"))
+                if cfg.APIInfo != "" {
+                        sb.WriteString(" ")
+                        sb.WriteString(dimStyle.Render("• " + cfg.APIInfo))
+                }
                 sb.WriteString("\n")
         }
         if cfg.HasGRPC {
@@ -247,6 +258,10 @@ func Dashboard(cfg DashboardConfig) string {
                 sb.WriteString(GRPCLabel())
                 sb.WriteString(" ")
                 sb.WriteString(success.Render("gRPC"))
+                if cfg.GRPCInfo != "" {
+                        sb.WriteString(" ")
+                        sb.WriteString(dimStyle.Render("• " + cfg.GRPCInfo))
+                }
                 sb.WriteString("\n")
         }
         if cfg.HasLog {
@@ -277,17 +292,23 @@ func Dashboard(cfg DashboardConfig) string {
         sb.WriteString("\n")
 
         if cfg.HasDB {
-                sb.WriteString(Hint("tinker db              Interactive database session"))
+                sb.WriteString(Hint("tinker db                Interactive database session"))
                 sb.WriteString("\n")
-                sb.WriteString(Hint("tinker db ls           List tables"))
+                sb.WriteString(Hint("tinker db ls             List tables"))
                 sb.WriteString("\n")
-                sb.WriteString(Hint("tinker db desc users   Show table schema"))
+                sb.WriteString(Hint("tinker db desc users     Show table schema"))
                 sb.WriteString("\n")
-                sb.WriteString(Hint("tinker db c users      Count rows"))
+                sb.WriteString(Hint("tinker db idx users      Show table indexes"))
                 sb.WriteString("\n")
-                sb.WriteString(Hint("tinker db f users 1    Find row by ID"))
+                sb.WriteString(Hint("tinker db c users        Count rows"))
                 sb.WriteString("\n")
-                sb.WriteString(Hint("tinker db sql \"SELECT\" Run SQL"))
+                sb.WriteString(Hint("tinker db f users 1      Find row by ID"))
+                sb.WriteString("\n")
+                sb.WriteString(Hint("tinker db sql \"SELECT\"   Run SQL"))
+                sb.WriteString("\n")
+                sb.WriteString(Hint("tinker db ping           Test connectivity"))
+                sb.WriteString("\n")
+                sb.WriteString(Hint("tinker db size           Table row counts"))
                 sb.WriteString("\n")
         }
         if cfg.HasAPI {

@@ -3,6 +3,7 @@ package main
 import (
         "fmt"
         "os"
+        "strings"
 
         "github.com/mvaliolahi/tinker/internal/config"
         "github.com/mvaliolahi/tinker/internal/deps"
@@ -11,7 +12,7 @@ import (
 )
 
 // Version is set at build time via -ldflags: -X main.version=$(git describe --tags)
-var version = "0.21.0"
+var version = "0.22.0"
 
 var projectDir string
 
@@ -51,8 +52,11 @@ func runDashboard(_ *cobra.Command, _ []string) error {
         fmt.Print(ui.Dashboard(ui.DashboardConfig{
                 ProjectDir:  root,
                 HasDB:       cfg.Database != nil,
+                DBInfo:      dbInfo(cfg),
                 HasAPI:      cfg.API != nil,
+                APIInfo:     apiInfo(cfg),
                 HasGRPC:     cfg.GRPC != nil,
+                GRPCInfo:    grpcInfo(cfg),
                 HasLog:      cfg.Log != nil && len(cfg.Log.Files) > 0,
                 MissingDeps: len(deps.Check()),
                 Version:     version,
@@ -103,4 +107,67 @@ func versionCmd() *cobra.Command {
                         fmt.Println(ui.Banner(version))
                 },
         }
+}
+
+// dbInfo extracts a short description from the database config, e.g. "SQLite • apartment.db"
+func dbInfo(cfg *config.Config) string {
+        if cfg.Database == nil {
+                return ""
+        }
+        t := strings.Title(cfg.Database.Type)
+        url := cfg.Database.URL
+
+        // Extract a short identifier from the URL
+        switch cfg.Database.Type {
+        case "sqlite3":
+                // file:/path/to/db.sqlite3 or just /path/to/db.sqlite3
+                path := strings.TrimPrefix(url, "file:")
+                if idx := strings.Index(path, "?"); idx != -1 {
+                        path = path[:idx]
+                }
+                parts := strings.Split(path, "/")
+                if len(parts) > 0 {
+                        return t + " • " + parts[len(parts)-1]
+                }
+        case "postgres", "postgresql":
+                // postgres://user:pass@host:5432/dbname
+                if strings.Contains(url, "@") && strings.Contains(url, "/") {
+                        afterAt := url[strings.Index(url, "@")+1:]
+                        if idx := strings.Index(afterAt, "?"); idx != -1 {
+                                afterAt = afterAt[:idx]
+                        }
+                        return t + " • " + afterAt
+                }
+        case "mysql":
+                if strings.Contains(url, "@") && strings.Contains(url, "/") {
+                        afterAt := url[strings.Index(url, "@")+1:]
+                        if idx := strings.Index(afterAt, "?"); idx != -1 {
+                                afterAt = afterAt[:idx]
+                        }
+                        return t + " • " + afterAt
+                }
+        }
+        return t
+}
+
+// apiInfo extracts a short description from the API config.
+func apiInfo(cfg *config.Config) string {
+        if cfg.API == nil {
+                return ""
+        }
+        url := cfg.API.ResolvedBaseURL
+        // Strip scheme
+        url = strings.TrimPrefix(url, "http://")
+        url = strings.TrimPrefix(url, "https://")
+        // Trim trailing slash
+        url = strings.TrimRight(url, "/")
+        return url
+}
+
+// grpcInfo extracts a short description from the gRPC config.
+func grpcInfo(cfg *config.Config) string {
+        if cfg.GRPC == nil {
+                return ""
+        }
+        return cfg.GRPC.ResolvedAddr
 }

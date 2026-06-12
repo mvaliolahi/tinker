@@ -72,20 +72,30 @@ reflection = true
 # Open interactive database session (usql)
 tinker db
 
-# Quick database queries
+# Database queries (with handy shortcuts)
 tinker db tables                              # list all tables (alias: ls)
 tinker db describe users                      # show table schema (alias: desc)
+tinker db indexes users                       # show table indexes (alias: idx)
+tinker db schema users                        # show CREATE TABLE statement (alias: s)
 tinker db count users                         # count rows (alias: c)
+tinker db count users "status='active'"       # count with WHERE clause
 tinker db find users 1                        # find row by ID (alias: f)
 tinker db exec "SELECT * FROM users LIMIT 5"  # run SQL (aliases: e, sql)
+tinker db ping                                # test database connectivity
+tinker db size                                # show table row counts
 
 # Handy shortcuts
-tinker db ls                                  # same as: tinker db tables
-tinker db desc users                          # same as: tinker db describe users
-tinker db c users                             # same as: tinker db count users
-tinker db f users 1                           # same as: tinker db find users 1
-tinker db e "SELECT 1"                        # same as: tinker db exec "SELECT 1"
-tinker db sql "SELECT 1"                      # same as: tinker db exec "SELECT 1"
+tinker db ls           # same as: tinker db tables
+tinker db desc users   # same as: tinker db describe users
+tinker db idx users    # same as: tinker db indexes users
+tinker db s users      # same as: tinker db schema users
+tinker db c users      # same as: tinker db count users
+tinker db f users 1    # same as: tinker db find users 1
+tinker db sql "SELECT" # same as: tinker db exec "SELECT 1"
+
+# Configuration
+tinker config show      # display resolved configuration
+tinker config validate  # validate tinker.toml
 
 # Call API endpoints
 tinker api GET /users

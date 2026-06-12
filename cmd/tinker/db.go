@@ -18,9 +18,13 @@ func dbCmd() *cobra.Command {
                 dbConnectCmd(),
                 dbTablesCmd(),
                 dbDescribeCmd(),
+                dbIndexesCmd(),
+                dbSchemaCmd(),
                 dbCountCmd(),
                 dbFindCmd(),
                 dbExecCmd(),
+                dbPingCmd(),
+                dbSizeCmd(),
         )
 
         cmd.RunE = func(_ *cobra.Command, _ []string) error {
