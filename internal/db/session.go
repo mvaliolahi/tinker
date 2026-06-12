@@ -7,10 +7,9 @@ import (
 
 	"github.com/mvaliolahi/tinker/internal/config"
 
-	// Register pure Go database drivers
+	// Register pure Go database drivers (always available)
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/jackc/pgx/v5/stdlib"   // pgx database/sql adapter
-	_ "modernc.org/sqlite"
+	_ "github.com/jackc/pgx/v5/stdlib" // pgx database/sql adapter
 )
 
 // Session holds database connection info and an optional native database/sql connection.
@@ -38,8 +37,7 @@ func NewSession(cfg *config.Database) (*Session, error) {
 	s := &Session{Driver: driver, DSN: cfg.URL, Type: cfg.Type}
 
 	// Open a native database/sql connection.
-	// With the drivers compiled in, this should always succeed
-	// for sqlite3, postgres, and mysql.
+	// Supported for postgres (pgx) and mysql. SQLite uses CLI fallback.
 	s.tryOpenNative()
 
 	return s, nil
@@ -50,23 +48,17 @@ func (s *Session) tryOpenNative() {
 	dsn := s.DSN
 	driver := s.Driver
 
-	// Adjust DSN for the registered drivers
+	// Only attempt native connections for drivers we've compiled in
 	switch driver {
 	case "sqlite3":
-		// modernc.org/sqlite expects "file:" prefix for paths
-		if !strings.HasPrefix(dsn, "file:") && !strings.HasPrefix(dsn, ":memory:") {
-			if strings.HasPrefix(dsn, "/") {
-				dsn = "file:" + dsn + "?mode=ro"
-			} else {
-				dsn = "file:" + dsn + "?mode=ro"
-			}
-		} else if strings.HasPrefix(dsn, "file:") && !strings.Contains(dsn, "?") {
-			dsn = dsn + "?mode=ro"
-		}
+		// No native SQLite driver — all queries fall back to CLI
+		// (sqlite3, litecli, or usql). This avoids the ~41MB
+		// modernc.org/sqlite dependency which is blocked by some
+		// Go module proxies.
+		return
 	case "postgres":
 		// pgx/stdlib accepts standard PostgreSQL connection strings
 		// Both "postgres://..." and "host=... user=..." formats work
-		// No DSN transformation needed
 	}
 
 	db, err := sql.Open(driver, dsn)

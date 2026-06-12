@@ -233,15 +233,15 @@ Tinker v0.23+ includes **pure Go database drivers** compiled into the binary:
 
 | Driver | Package | Supports |
 |--------|---------|----------|
-| **SQLite** | `modernc.org/sqlite` | All one-shot queries (tables, describe, indexes, schema, count, find, exec, ping, size) |
 | **PostgreSQL** | `jackc/pgx/v5` | All one-shot queries |
 | **MySQL** | `go-sql-driver/mysql` | All one-shot queries |
+| **SQLite** | CLI fallback | Queries via `sqlite3`/`litecli`/`usql` |
 
 **This means:**
-- `tinker db ls`, `tinker db desc`, `tinker db c`, `tinker db f`, `tinker db sql`, etc. work **without any external CLI tools installed**
-- No more `sqlite3 -c` bugs, DSN format mismatches, or `file:` prefix issues
+- `tinker db ls`, `tinker db desc`, `tinker db c`, `tinker db f`, `tinker db sql` work for PostgreSQL and MySQL **without any external CLI tools installed**
+- SQLite uses CLI tools (`sqlite3`/`litecli`/`usql`) for all queries — this avoids the ~41MB `modernc.org/sqlite` dependency which is blocked by some Go module proxies
 - Cross-compilation works everywhere (pure Go, no CGO)
-- External CLIs (`litecli`, `pgcli`, `mycli`, `usql`) are only needed for **interactive sessions** (`tinker db connect`)
+- External CLIs (`litecli`, `pgcli`, `mycli`, `usql`) are needed for **interactive sessions** (`tinker db connect`)
 
 ## Rich Output
 
