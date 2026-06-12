@@ -79,7 +79,7 @@ func (s *Session) Connect() error {
 func (s *Session) modernConnect() (string, []string) {
         switch s.Driver {
         case "sqlite3":
-                return "litecli", []string{s.DSN}
+                return "litecli", []string{s.dsnForCLI()}
         case "postgres":
                 return "pgcli", []string{s.DSN}
         case "mysql":
@@ -89,10 +89,25 @@ func (s *Session) modernConnect() (string, []string) {
         }
 }
 
+// dsnForCLI returns the DSN in the format expected by the native CLI tool.
+// For sqlite3, this strips the "file:" prefix since the sqlite3 CLI expects a plain path.
+func (s *Session) dsnForCLI() string {
+        if s.Driver == "sqlite3" {
+                dsn := s.DSN
+                // Strip file: prefix and query params for sqlite3 CLI
+                dsn = strings.TrimPrefix(dsn, "file:")
+                if idx := strings.Index(dsn, "?"); idx != -1 {
+                        dsn = dsn[:idx]
+                }
+                return dsn
+        }
+        return s.DSN
+}
+
 func (s *Session) nativeConnect() (string, []string) {
         switch s.Driver {
         case "sqlite3":
-                return "sqlite3", []string{s.DSN}
+                return "sqlite3", []string{s.dsnForCLI()}
         case "postgres":
                 return "psql", []string{s.DSN}
         case "mysql":
@@ -123,7 +138,8 @@ func (s *Session) Exec(query string) (string, error) {
 func (s *Session) nativeExec(query string) (string, []string) {
         switch s.Driver {
         case "sqlite3":
-                return "sqlite3", []string{s.DSN, "-c", query}
+                // sqlite3 takes the database path as first arg, query as second positional arg
+                return "sqlite3", []string{s.dsnForCLI(), query}
         case "postgres":
                 return "psql", []string{s.DSN, "-c", query}
         case "mysql":
