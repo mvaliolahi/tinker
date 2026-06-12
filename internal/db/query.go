@@ -34,16 +34,15 @@ func (s *Session) tablesNative() (string, error) {
 	}
 	defer rows.Close()
 
-	var sb strings.Builder
+	var names []string
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
 			continue
 		}
-		sb.WriteString(name)
-		sb.WriteString("\n")
+		names = append(names, name)
 	}
-	return sb.String(), rows.Err()
+	return renderSimpleList(names), rows.Err()
 }
 
 func (s *Session) tablesCLI() (string, error) {
@@ -110,16 +109,34 @@ func (s *Session) validateTable(table string) error {
 func (s *Session) describeNative(table string) (string, error) {
 	switch s.Type {
 	case "postgres":
-		return s.queryRowsNative(
-			"SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position",
+		rows, err := s.db.Query(
+			"SELECT column_name as \"Column\", data_type as \"Type\", is_nullable as \"Nullable\", column_default as \"Default\" FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position",
 			table,
 		)
+		if err != nil {
+			return "", fmt.Errorf("describe query: %w", err)
+		}
+		defer rows.Close()
+		return renderTableFromRows(rows)
 	case "sqlite3":
-		return s.queryRowsNative(
+		rows, err := s.db.Query(
 			fmt.Sprintf("SELECT name as \"Column\", type as \"Type\", CASE WHEN \"notnull\" = 1 THEN 'NOT NULL' ELSE 'NULL' END as \"Nullable\", \"dflt_value\" as \"Default\", CASE WHEN pk > 0 THEN 'PK' ELSE '' END as \"Key\" FROM pragma_table_info(%s) ORDER BY cid", quoteIdent(table)),
 		)
+		if err != nil {
+			return "", fmt.Errorf("describe query: %w", err)
+		}
+		defer rows.Close()
+		return renderTableFromRows(rows)
 	case "mysql":
-		return s.queryRowsNative(fmt.Sprintf("DESCRIBE %s", quoteIdent(table)))
+		rows, err := s.db.Query(
+			"SELECT column_name as \"Column\", column_type as \"Type\", is_nullable as \"Nullable\", column_key as \"Key\", column_default as \"Default\", extra as \"Extra\" FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? ORDER BY ordinal_position",
+			table,
+		)
+		if err != nil {
+			return "", fmt.Errorf("describe query: %w", err)
+		}
+		defer rows.Close()
+		return renderTableFromRows(rows)
 	default:
 		return s.describeCLI(table)
 	}
@@ -154,16 +171,34 @@ func (s *Session) Indexes(table string) (string, error) {
 func (s *Session) indexesNative(table string) (string, error) {
 	switch s.Type {
 	case "postgres":
-		return s.queryRowsNative(
+		rows, err := s.db.Query(
 			"SELECT indexname as \"Name\", indexdef as \"Definition\" FROM pg_indexes WHERE tablename = $1 ORDER BY indexname",
 			table,
 		)
+		if err != nil {
+			return "", fmt.Errorf("indexes query: %w", err)
+		}
+		defer rows.Close()
+		return renderTableFromRows(rows)
 	case "sqlite3":
-		return s.queryRowsNative(
-			fmt.Sprintf("SELECT name as \"Name\", CASE WHEN \"unique\" = 1 THEN 'UNIQUE' ELSE '' END as \"Unique\", origin as \"Origin\" FROM pragma_index_list(%s) ORDER BY name", quoteIdent(table)),
+		rows, err := s.db.Query(
+			fmt.Sprintf("SELECT il.name as \"Index\", CASE WHEN il.\"unique\" = 1 THEN 'UNIQUE' ELSE '' END as \"Unique\", il.origin as \"Origin\", GROUP_CONCAT(ii.name, ', ') as \"Columns\" FROM pragma_index_list(%s) il LEFT JOIN pragma_index_info(il.name) ii GROUP BY il.name ORDER BY il.name", quoteIdent(table)),
 		)
+		if err != nil {
+			return "", fmt.Errorf("indexes query: %w", err)
+		}
+		defer rows.Close()
+		return renderTableFromRows(rows)
 	case "mysql":
-		return s.queryRowsNative(fmt.Sprintf("SHOW INDEX FROM %s", quoteIdent(table)))
+		rows, err := s.db.Query(
+			"SELECT index_name as \"Name\", column_name as \"Column\", CASE WHEN non_unique = 0 THEN 'UNIQUE' ELSE '' END as \"Unique\", index_type as \"Type\" FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? ORDER BY index_name, seq_in_index",
+			table,
+		)
+		if err != nil {
+			return "", fmt.Errorf("indexes query: %w", err)
+		}
+		defer rows.Close()
+		return renderTableFromRows(rows)
 	default:
 		return s.indexesCLI(table)
 	}
@@ -184,11 +219,54 @@ func (s *Session) indexesCLI(table string) (string, error) {
 	return s.ExecFormatted(q)
 }
 
-// Schema returns the CREATE TABLE statement for a table.
+// Schema returns the CREATE TABLE statement for a table (with syntax highlighting).
 func (s *Session) Schema(table string) (string, error) {
 	if err := s.validateTable(table); err != nil {
 		return "", err
 	}
+	if s.db != nil {
+		return s.schemaNative(table)
+	}
+	return s.schemaCLI(table)
+}
+
+func (s *Session) schemaNative(table string) (string, error) {
+	switch s.Type {
+	case "sqlite3":
+		var ddl string
+		q := "SELECT sql FROM sqlite_master WHERE type='table' AND name = ?"
+		if err := s.db.QueryRow(q, table).Scan(&ddl); err != nil {
+			return "", fmt.Errorf("schema query: %w", err)
+		}
+		return ddl + ";\n", nil
+	case "postgres":
+		var ddl string
+		q := "SELECT 'CREATE TABLE ' || tablename || ' (' || string_agg(column_name || ' ' || data_type || CASE WHEN is_nullable = 'NO' THEN ' NOT NULL' ELSE '' END || CASE WHEN column_default IS NOT NULL THEN ' DEFAULT ' || column_default ELSE '' END, ', ' ORDER BY ordinal_position) || ');' FROM information_schema.columns WHERE table_name = $1 GROUP BY tablename"
+		if err := s.db.QueryRow(q, table).Scan(&ddl); err != nil {
+			return "", fmt.Errorf("schema query: %w", err)
+		}
+		return ddl + "\n", nil
+	case "mysql":
+		rows, err := s.db.Query("SHOW CREATE TABLE " + quoteIdent(table))
+		if err != nil {
+			return "", fmt.Errorf("schema query: %w", err)
+		}
+		defer rows.Close()
+		// SHOW CREATE TABLE returns: Table, Create Table
+		if rows.Next() {
+			var tableName, createStmt string
+			if err := rows.Scan(&tableName, &createStmt); err != nil {
+				return "", err
+			}
+			return createStmt + ";\n", nil
+		}
+		return "", fmt.Errorf("no schema found for table %s", table)
+	default:
+		return s.schemaCLI(table)
+	}
+}
+
+func (s *Session) schemaCLI(table string) (string, error) {
 	var q string
 	switch s.Type {
 	case "sqlite3":
@@ -209,18 +287,7 @@ func (s *Session) Ping() error {
 		return s.db.Ping()
 	}
 	// No native connection — try a trivial CLI query
-	var q string
-	switch s.Type {
-	case "sqlite3":
-		q = "SELECT 1;"
-	case "postgres":
-		q = "SELECT 1;"
-	case "mysql":
-		q = "SELECT 1;"
-	default:
-		q = "SELECT 1;"
-	}
-	_, err := s.Exec(q)
+	_, err := s.Exec("SELECT 1;")
 	return err
 }
 
@@ -236,48 +303,87 @@ func (s *Session) sizeNative() (string, error) {
 	switch s.Type {
 	case "sqlite3":
 		// Get all table names and count each one
-		tables, err := s.tablesNative()
+		names, err := s.tableNamesNative()
 		if err != nil {
 			return "", err
 		}
-		return s.countTablesNative(tables)
+		return s.countTablesRendered(names)
 	case "postgres":
-		return s.queryRowsNative(
+		rows, err := s.db.Query(
 			"SELECT relname as \"Table\", n_live_tup as \"Rows\" FROM pg_stat_user_tables ORDER BY n_live_tup DESC;",
 		)
+		if err != nil {
+			return "", fmt.Errorf("size query: %w", err)
+		}
+		defer rows.Close()
+		return renderTableFromRows(rows)
 	case "mysql":
-		return s.queryRowsNative(
+		rows, err := s.db.Query(
 			"SELECT table_name as \"Table\", table_rows as \"Rows\" FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY table_rows DESC;",
 		)
+		if err != nil {
+			return "", fmt.Errorf("size query: %w", err)
+		}
+		defer rows.Close()
+		return renderTableFromRows(rows)
 	default:
 		return s.sizeCLI()
 	}
 }
 
-func (s *Session) countTablesNative(tableList string) (string, error) {
-	tables := strings.Split(strings.TrimSpace(tableList), "\n")
-	var sb strings.Builder
-	sb.WriteString("Table\tRows\n")
-	for _, t := range tables {
-		if t == "" {
+// tableNamesNative returns just the table names as a slice (no formatting).
+func (s *Session) tableNamesNative() ([]string, error) {
+	var q string
+	switch s.Type {
+	case "postgres":
+		q = "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename"
+	case "mysql":
+		q = "SHOW TABLES"
+	case "sqlite3":
+		q = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+	default:
+		q = "SELECT table_name FROM information_schema.tables WHERE table_schema = CURRENT_SCHEMA() ORDER BY table_name"
+	}
+
+	rows, err := s.db.Query(q)
+	if err != nil {
+		return nil, fmt.Errorf("querying tables: %w", err)
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
 			continue
 		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
+}
+
+// countTablesRendered counts rows in each table and renders a go-pretty table.
+func (s *Session) countTablesRendered(tableNames []string) (string, error) {
+	headers := []string{"Table", "Rows"}
+	var dataRows [][]string
+
+	for _, t := range tableNames {
 		var count int64
 		q := fmt.Sprintf("SELECT COUNT(*) FROM %s", quoteIdent(t))
 		if err := s.db.QueryRow(q).Scan(&count); err != nil {
-			sb.WriteString(fmt.Sprintf("%s\t?\n", t))
+			dataRows = append(dataRows, []string{t, "?"})
 			continue
 		}
-		sb.WriteString(fmt.Sprintf("%s\t%d\n", t, count))
+		dataRows = append(dataRows, []string{t, fmt.Sprintf("%d", count)})
 	}
-	return sb.String(), nil
+
+	return renderTable(headers, dataRows), nil
 }
 
 func (s *Session) sizeCLI() (string, error) {
 	var q string
 	switch s.Type {
 	case "sqlite3":
-		q = "SELECT name as \"Table\", (SELECT COUNT(*) FROM \"" + "\".\"\" LIMIT 0) as \"Rows\" FROM sqlite_master WHERE type='table' ORDER BY name;"
 		// CLI fallback: just list tables — counting via CLI is impractical
 		return s.Tables()
 	case "postgres":
@@ -301,11 +407,6 @@ func (s *Session) Count(table, where string) (string, error) {
 		var count int64
 		var q string
 		if where != "" {
-			// SECURITY: where clause is user-supplied SQL.
-			// We cannot parameterize arbitrary WHERE conditions since the user
-			// provides raw SQL (e.g., "status='active' AND created_at > '2024-01-01'").
-			// Table name is validated, and this is a read-only COUNT query,
-			// so the risk is limited to data leakage, not data modification.
 			q = fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s", quoteIdent(table), where)
 		} else {
 			q = fmt.Sprintf("SELECT COUNT(*) FROM %s", quoteIdent(table))
@@ -346,43 +447,7 @@ func (s *Session) Find(table, id string) (string, error) {
 			return "", fmt.Errorf("find query: %w", err)
 		}
 		defer rows.Close()
-
-		cols, err := rows.Columns()
-		if err != nil {
-			return "", err
-		}
-
-		var sb strings.Builder
-		sb.WriteString(strings.Join(cols, "\t"))
-		sb.WriteString("\n")
-
-		for rows.Next() {
-			vals := make([]interface{}, len(cols))
-			ptrs := make([]interface{}, len(cols))
-			for i := range vals {
-				ptrs[i] = &vals[i]
-			}
-			if err := rows.Scan(ptrs...); err != nil {
-				continue
-			}
-			for i, v := range vals {
-				if i > 0 {
-					sb.WriteString("\t")
-				}
-				switch val := v.(type) {
-				case []byte:
-					sb.WriteString(string(val))
-				case string:
-					sb.WriteString(val)
-				case nil:
-					sb.WriteString("NULL")
-				default:
-					sb.WriteString(fmt.Sprintf("%v", val))
-				}
-			}
-			sb.WriteString("\n")
-		}
-		return sb.String(), rows.Err()
+		return renderTableFromRows(rows)
 	}
 
 	// CLI fallback — ID is not directly injectable since table is validated
@@ -390,10 +455,24 @@ func (s *Session) Find(table, id string) (string, error) {
 	return s.ExecFormatted(q)
 }
 
+// ExecNative runs a raw SQL query via the native connection and returns
+// formatted table results using go-pretty. Returns ("", nil) if no native connection.
+func (s *Session) ExecNative(query string) (string, error) {
+	if s.db == nil {
+		return "", nil
+	}
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return "", fmt.Errorf("query: %w", err)
+	}
+	defer rows.Close()
+
+	return renderTableFromRows(rows)
+}
+
 // ExecCLIQuery runs a query via the external CLI with a single parameter.
 func (s *Session) ExecCLIQuery(query, param string) (string, error) {
-	// For CLI-based execution, we substitute the parameter safely
-	// by escaping single quotes (basic SQL injection prevention for CLI)
 	safe := escapeSingle(param)
 	query = strings.Replace(query, "?", "'"+safe+"'", 1)
 	return s.Exec(query)
@@ -404,52 +483,6 @@ func (s *Session) ExecCLIQueryFormatted(query, param string) (string, error) {
 	safe := escapeSingle(param)
 	query = strings.Replace(query, "?", "'"+safe+"'", 1)
 	return s.ExecFormatted(query)
-}
-
-// queryRowsNative runs a query and returns tab-separated results.
-func (s *Session) queryRowsNative(query string, args ...interface{}) (string, error) {
-	rows, err := s.db.Query(query, args...)
-	if err != nil {
-		return "", fmt.Errorf("query: %w", err)
-	}
-	defer rows.Close()
-
-	cols, err := rows.Columns()
-	if err != nil {
-		return "", err
-	}
-
-	var sb strings.Builder
-	sb.WriteString(strings.Join(cols, "\t"))
-	sb.WriteString("\n")
-
-	for rows.Next() {
-		vals := make([]interface{}, len(cols))
-		ptrs := make([]interface{}, len(cols))
-		for i := range vals {
-			ptrs[i] = &vals[i]
-		}
-		if err := rows.Scan(ptrs...); err != nil {
-			continue
-		}
-		for i, v := range vals {
-			if i > 0 {
-				sb.WriteString("\t")
-			}
-			switch val := v.(type) {
-			case []byte:
-				sb.WriteString(string(val))
-			case string:
-				sb.WriteString(val)
-			case nil:
-				sb.WriteString("NULL")
-			default:
-				sb.WriteString(fmt.Sprintf("%v", val))
-			}
-		}
-		sb.WriteString("\n")
-	}
-	return sb.String(), rows.Err()
 }
 
 // quoteIdent wraps a SQL identifier in double-quotes (standard SQL) or backticks (MySQL).

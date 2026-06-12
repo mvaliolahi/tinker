@@ -20,6 +20,8 @@ func Generate(result *detect.Result, dir string) error {
         writeGRPC(&sb, result.GRPC)
         writeLog(&sb, result.Log)
         writeCommands(&sb)
+        writeDocker(&sb, result.Docker)
+        writeEnvTemplate(&sb, result.Docker)
 
         return os.WriteFile(filepath.Join(dir, "tinker.toml"), []byte(sb.String()), 0644)
 }
@@ -86,6 +88,28 @@ func writeCommands(sb *strings.Builder) {
         sb.WriteString("# [commands]\n")
         sb.WriteString("# migrate = \"go run ./cmd/migrate\"\n")
         sb.WriteString("# seed = \"go run ./cmd/seed\"\n\n")
+}
+
+func writeDocker(sb *strings.Builder, d *detect.DockerResult) {
+        if d == nil {
+                return
+        }
+        sb.WriteString("# Docker Compose detected: " + d.ComposeFile + "\n")
+        sb.WriteString("# Use: tinker docker list\n\n")
+}
+
+func writeEnvTemplate(sb *strings.Builder, d *detect.DockerResult) {
+        sb.WriteString("# Multi-environment overrides\n")
+        sb.WriteString("# Use: tinker --env staging db\n")
+        sb.WriteString("# [envs.staging.database]\n")
+        sb.WriteString("# source = \"env:STAGING_DATABASE_URL\"\n")
+        sb.WriteString("# [envs.staging.api]\n")
+        sb.WriteString("# base_url = \"env:STAGING_API_BASE_URL\"\n")
+        sb.WriteString("# auth = \"env:STAGING_API_TOKEN\"\n")
+        sb.WriteString("# [envs.production.database]\n")
+        sb.WriteString("# source = \"env:PRODUCTION_DATABASE_URL\"\n")
+        sb.WriteString("# [envs.production.api]\n")
+        sb.WriteString("# base_url = \"env:PRODUCTION_API_BASE_URL\"\n")
 }
 
 // SaveLogConfig updates or appends the [log] section in tinker.toml.

@@ -55,7 +55,9 @@ func printDBInfo(s *db.Session) {
         fmt.Println(ui.KeyValue("driver", s.Driver))
         fmt.Println(ui.KeyValue("cli", s.CLI()))
         if s.HasNativeConn() {
-                fmt.Println(ui.KeyValue("native", "connected"))
+                fmt.Println(ui.KeyValue("native", "connected ✓"))
+        } else {
+                fmt.Println(ui.KeyValue("native", "not available (CLI only)"))
         }
         fmt.Println()
 

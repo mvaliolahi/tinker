@@ -211,8 +211,11 @@ type DashboardConfig struct {
         HasGRPC     bool
         GRPCInfo    string // e.g. "localhost:50051"
         HasLog      bool
+        HasDocker   bool
+        DockerInfo  string // e.g. "3 services (docker-compose.yml)"
         MissingDeps int
         Version     string
+        Env         string // active environment name (empty = default)
 }
 
 // Dashboard renders the main dashboard view.
@@ -225,6 +228,11 @@ func Dashboard(cfg DashboardConfig) string {
         sb.WriteString("  ")
         sb.WriteString(labelStyle.Render("Project: "))
         sb.WriteString(valueStyle.Render(cfgDir(cfg.ProjectDir)))
+        if cfg.Env != "" {
+                sb.WriteString("  ")
+                sb.WriteString(labelStyle.Render("Env: "))
+                sb.WriteString(accent.Bold(true).Render(cfg.Env))
+        }
         sb.WriteString("\n\n")
 
         sb.WriteString("  ")
@@ -271,8 +279,19 @@ func Dashboard(cfg DashboardConfig) string {
                 sb.WriteString(success.Render("Logs"))
                 sb.WriteString("\n")
         }
+        if cfg.HasDocker {
+                sb.WriteString("  ")
+                sb.WriteString(badge.Foreground(lipgloss.Color("8")).Background(lipgloss.Color("0")).Render(" DOCKER "))
+                sb.WriteString(" ")
+                sb.WriteString(success.Render("Compose"))
+                if cfg.DockerInfo != "" {
+                        sb.WriteString(" ")
+                        sb.WriteString(dimStyle.Render("• " + cfg.DockerInfo))
+                }
+                sb.WriteString("\n")
+        }
 
-        if !cfg.HasDB && !cfg.HasAPI && !cfg.HasGRPC && !cfg.HasLog {
+        if !cfg.HasDB && !cfg.HasAPI && !cfg.HasGRPC && !cfg.HasLog && !cfg.HasDocker {
                 sb.WriteString(Dim("  No services configured"))
                 sb.WriteString("\n")
         }
@@ -300,11 +319,13 @@ func Dashboard(cfg DashboardConfig) string {
                 sb.WriteString("\n")
                 sb.WriteString(Hint("tinker db idx users      Show table indexes"))
                 sb.WriteString("\n")
+                sb.WriteString(Hint("tinker db s users        Show CREATE TABLE"))
+                sb.WriteString("\n")
                 sb.WriteString(Hint("tinker db c users        Count rows"))
                 sb.WriteString("\n")
                 sb.WriteString(Hint("tinker db f users 1      Find row by ID"))
                 sb.WriteString("\n")
-                sb.WriteString(Hint("tinker db sql \"SELECT\"   Run SQL"))
+                sb.WriteString(Hint("tinker db sql \"SELECT\"   Run SQL (native)"))
                 sb.WriteString("\n")
                 sb.WriteString(Hint("tinker db ping           Test connectivity"))
                 sb.WriteString("\n")

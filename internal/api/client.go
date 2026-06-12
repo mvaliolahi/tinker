@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mvaliolahi/tinker/internal/ui"
+	"github.com/tidwall/gjson"
 )
 
 const httpRequestTimeout = 30 * time.Second
@@ -62,10 +63,16 @@ func (s *Session) Request(method, path, body string, extra map[string]string) (s
 
 	respBody, _ := io.ReadAll(resp.Body)
 
-	// Try jq filtering if available and response is JSON
-	filteredBody, err := s.tryJqFilter(respBody)
-	if err == nil && filteredBody != "" {
-		respBody = []byte(filteredBody)
+	// Try gjson filtering first (native Go, no external dependency)
+	if s.jqFilter != "" {
+		if filtered := s.gjsonFilter(respBody); filtered != "" {
+			respBody = []byte(filtered)
+		} else {
+			// gjson didn't match — try jq CLI as fallback
+			if filtered, err := s.tryJqFilter(respBody); err == nil && filtered != "" {
+				respBody = []byte(filtered)
+			}
+		}
 	}
 
 	var buf bytes.Buffer
@@ -80,7 +87,7 @@ func (s *Session) Request(method, path, body string, extra map[string]string) (s
 	if strings.TrimSpace(bodyStr) != "" {
 		buf.WriteString("\n")
 		if json.Valid([]byte(bodyStr)) {
-			buf.WriteString(colorizeJSON(bodyStr))
+			buf.WriteString(highlightJSON(bodyStr))
 		} else {
 			buf.WriteString(bodyStr)
 		}
@@ -89,7 +96,44 @@ func (s *Session) Request(method, path, body string, extra map[string]string) (s
 	return buf.String(), nil
 }
 
+// gjsonFilter applies a gjson path query to a JSON response body.
+// gjson paths use dot notation (e.g., "data.users.0.name") which covers
+// most common filtering needs without requiring the full jq language.
+// Returns empty string if the path doesn't match or the body isn't JSON.
+func (s *Session) gjsonFilter(body []byte) string {
+	if !json.Valid(body) {
+		return ""
+	}
+
+	result := gjson.GetBytes(body, s.jqFilter)
+	if !result.Exists() {
+		return ""
+	}
+
+	// Format the result based on its type
+	switch result.Type {
+	case gjson.String:
+		return result.String()
+	case gjson.Number:
+		return result.String()
+	case gjson.True, gjson.False:
+		return result.String()
+	case gjson.Null:
+		return "null"
+	case gjson.JSON:
+		// Re-format the extracted JSON with indentation
+		var pretty bytes.Buffer
+		if json.Indent(&pretty, []byte(result.Raw), "", "  ") == nil {
+			return pretty.String()
+		}
+		return result.Raw
+	default:
+		return result.Raw
+	}
+}
+
 // tryJqFilter attempts to pipe the response through jq if a filter is set and jq is available.
+// This is the fallback for complex jq expressions that gjson can't handle.
 func (s *Session) tryJqFilter(body []byte) (string, error) {
 	if s.jqFilter == "" {
 		return "", nil
@@ -141,73 +185,17 @@ func formatStatus(code int) string {
 	}
 }
 
-func colorizeJSON(raw string) string {
+// highlightJSON formats and syntax-highlights a JSON string using chroma.
+func highlightJSON(raw string) string {
+	// First indent the JSON
 	var buf bytes.Buffer
 	if json.Indent(&buf, []byte(raw), "", "  ") != nil {
 		return raw
 	}
 	indented := buf.String()
 
-	var out bytes.Buffer
-	i := 0
-	expectKey := true
-
-	for i < len(indented) {
-		ch := indented[i]
-
-		if ch == '"' {
-			end := findStringEnd(indented, i)
-			token := indented[i:end]
-
-			if expectKey {
-				out.WriteString(ui.Bold(token))
-			} else {
-				out.WriteString(ui.Accent(token))
-			}
-
-			i = end
-			expectKey = false
-			continue
-		}
-
-		switch ch {
-		case ':':
-			out.WriteString(ui.Dim(": "))
-			i += 2
-			expectKey = false
-		case ',':
-			out.WriteString(ui.Dim(","))
-			i++
-			expectKey = true
-		case '{', '[':
-			out.WriteByte(ch)
-			i++
-			expectKey = true
-		case '}', ']':
-			out.WriteByte(ch)
-			i++
-		default:
-			out.WriteByte(ch)
-			i++
-		}
-	}
-
-	return out.String()
-}
-
-func findStringEnd(s string, start int) int {
-	i := start + 1
-	for i < len(s) {
-		if s[i] == '\\' {
-			i += 2
-			continue
-		}
-		if s[i] == '"' {
-			return i + 1
-		}
-		i++
-	}
-	return len(s)
+	// Apply chroma syntax highlighting
+	return ui.HighlightJSON(indented)
 }
 
 func (s *Session) Get(path string) (string, error)        { return s.Request("GET", path, "", nil) }

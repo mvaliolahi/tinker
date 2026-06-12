@@ -152,6 +152,27 @@ func configShowCmd() *cobra.Command {
                                 fmt.Println()
                         }
 
+                        if len(cfg.ListEnvs()) > 0 {
+                                fmt.Println("  " + ui.CfgLabel() + " " + ui.Bold("Environments"))
+                                for _, name := range cfg.ListEnvs() {
+                                        override := cfg.Envs[name]
+                                        parts := []string{}
+                                        if override.Database != nil {
+                                                parts = append(parts, "database")
+                                        }
+                                        if override.API != nil {
+                                                parts = append(parts, "api")
+                                        }
+                                        if override.GRPC != nil {
+                                                parts = append(parts, "grpc")
+                                        }
+                                        fmt.Println(ui.Bullet(name, fmt.Sprintf("overrides: %s", strings.Join(parts, ", "))))
+                                }
+                                fmt.Println()
+                                fmt.Println(ui.Hint("Use: tinker --env <name> db"))
+                                fmt.Println()
+                        }
+
                         return nil
                 },
         }

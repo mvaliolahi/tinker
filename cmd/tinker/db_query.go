@@ -65,8 +65,12 @@ func dbSchemaCmd() *cobra.Command {
 			fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Schema "+args[0]))
 			fmt.Println()
 			out, err := s.Schema(args[0])
-			fmt.Print(out)
-			return err
+			if err != nil {
+				return err
+			}
+			// Apply SQL syntax highlighting
+			fmt.Print(ui.HighlightSQL(out))
+			return nil
 		},
 	}
 }
@@ -136,6 +140,21 @@ func dbExecCmd() *cobra.Command {
 			fmt.Println("  " + ui.DBLabel() + " " + ui.Bold("Exec"))
 			fmt.Println(ui.Dim("  " + args[0]))
 			fmt.Println()
+
+			// Try native connection first (no external CLI dependency)
+			if s.HasNativeConn() {
+				out, nerr := s.ExecNative(args[0])
+				if nerr == nil && out != "" {
+					fmt.Print(out)
+					return nil
+				}
+				if nerr != nil {
+					// Native failed — fall through to CLI fallback
+					fmt.Println(ui.Dim("  native query failed, trying CLI..."))
+				}
+			}
+
+			// CLI fallback
 			out, err := s.ExecFormatted(args[0])
 			fmt.Print(out)
 			return err

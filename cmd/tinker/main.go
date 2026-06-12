@@ -7,14 +7,16 @@ import (
 
         "github.com/mvaliolahi/tinker/internal/config"
         "github.com/mvaliolahi/tinker/internal/deps"
+        "github.com/mvaliolahi/tinker/internal/detect"
         "github.com/mvaliolahi/tinker/internal/ui"
         "github.com/spf13/cobra"
 )
 
 // Version is set at build time via -ldflags: -X main.version=$(git describe --tags)
-var version = "0.22.0"
+var version = "0.25.0"
 
 var projectDir string
+var envName string
 
 func main() {
         root := &cobra.Command{
@@ -26,11 +28,13 @@ func main() {
         }
 
         root.PersistentFlags().StringVarP(&projectDir, "project", "p", "", "project directory")
+        root.PersistentFlags().StringVarP(&envName, "env", "e", "", "environment (e.g., staging, production)")
 
         root.AddCommand(
                 initCmd(), dbCmd(), apiCmd(), grpcCmd(), logCmd(),
                 runCmd(), makeCmd(), updateCmd(), depsCmd(),
                 configCmd(), versionCmd(), completionCmd(root),
+                envCmd(), commandsCmd(), dockerCmd(),
         )
 
         if err := root.Execute(); err != nil {
@@ -49,6 +53,9 @@ func runDashboard(_ *cobra.Command, _ []string) error {
                 return nil
         }
 
+        // Detect Docker Compose info for dashboard
+        hasDocker, dockerInfo := dockerDashboardInfo(root)
+
         fmt.Print(ui.Dashboard(ui.DashboardConfig{
                 ProjectDir:  root,
                 HasDB:       cfg.Database != nil,
@@ -58,8 +65,11 @@ func runDashboard(_ *cobra.Command, _ []string) error {
                 HasGRPC:     cfg.GRPC != nil,
                 GRPCInfo:    grpcInfo(cfg),
                 HasLog:      cfg.Log != nil && len(cfg.Log.Files) > 0,
+                HasDocker:   hasDocker,
+                DockerInfo:  dockerInfo,
                 MissingDeps: len(deps.Check()),
                 Version:     version,
+                Env:         envName,
         }))
         return nil
 }
@@ -79,7 +89,7 @@ func loadConfig() (*config.Config, string, error) {
                 return nil, "", err
         }
 
-        cfg, err := config.Load(root)
+        cfg, err := config.LoadWithEnv(root, envName)
         if err != nil {
                 return nil, "", err
         }
@@ -114,7 +124,7 @@ func dbInfo(cfg *config.Config) string {
         if cfg.Database == nil {
                 return ""
         }
-        t := strings.Title(cfg.Database.Type)
+        t := titleCase(cfg.Database.Type)
         url := cfg.Database.URL
 
         // Extract a short identifier from the URL
@@ -170,4 +180,22 @@ func grpcInfo(cfg *config.Config) string {
                 return ""
         }
         return cfg.GRPC.ResolvedAddr
+}
+
+// dockerDashboardInfo detects Docker Compose and returns (hasDocker, description).
+func dockerDashboardInfo(root string) (bool, string) {
+        result := detect.New(root).Detect()
+        if result.Docker == nil {
+                return false, ""
+        }
+        info := fmt.Sprintf("%d services (%s)", len(result.Docker.Services), result.Docker.ComposeFile)
+        return true, info
+}
+
+// titleCase capitalizes the first letter of a string (replaces deprecated strings.Title).
+func titleCase(s string) string {
+        if s == "" {
+                return s
+        }
+        return strings.ToUpper(s[:1]) + s[1:]
 }
