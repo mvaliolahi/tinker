@@ -2,7 +2,7 @@
 
 A project-aware CLI for database, API, and gRPC interaction — inspired by Laravel Tinker, built for Go (and any language).
 
-Tinker comes with **built-in database drivers** (SQLite, PostgreSQL, MySQL) for zero-dependency one-shot queries, and composes best-in-class open source tools (`usql`, `httpie`/`curlie`, `grpcurl`/`evans`) for interactive sessions. It reads your project's `tinker.toml` and `.env` to automatically configure connections, so you can jump straight into working with your project.
+Tinker comes with **built-in database drivers** (PostgreSQL, MySQL) for zero-dependency one-shot queries, and composes best-in-class open source tools (`usql`, `httpie`/`curlie`, `grpcurl`/`evans`) for interactive sessions. It reads your project's `tinker.toml` and `.env` to automatically configure connections, so you can jump straight into working with your project.
 
 ## Why Tinker?
 
@@ -41,10 +41,10 @@ tinker init
 ```
 
 Tinker will scan your project for:
-- `.env` files with `DATABASE_URL`, `API_BASE_URL`, `GRPC_ADDR`, etc.
+- `.env` files with `DATABASE_URL`, `DB_PATH`, `API_BASE_URL`, `GRPC_ADDR`, etc.
 - OpenAPI/Swagger spec files
 - `.proto` directories
-- SQLite database files
+- SQLite database files (`.db`, `.sqlite`, `.sqlite3`)
 - Docker Compose files
 
 And generate a `tinker.toml`:
@@ -229,19 +229,34 @@ auth_type = "bearer"
 
 ## Native Database Drivers
 
-Tinker v0.23+ includes **pure Go database drivers** compiled into the binary:
+Tinker v0.23+ includes **pure Go database drivers** compiled into the binary for PostgreSQL and MySQL:
 
 | Driver | Package | Supports |
 |--------|---------|----------|
 | **PostgreSQL** | `jackc/pgx/v5` | All one-shot queries |
 | **MySQL** | `go-sql-driver/mysql` | All one-shot queries |
-| **SQLite** | CLI fallback | Queries via `sqlite3`/`litecli`/`usql` |
+| **SQLite** | `sqlite3`/`litecli`/`usql` | Queries via CLI tools |
 
 **This means:**
 - `tinker db ls`, `tinker db desc`, `tinker db c`, `tinker db f`, `tinker db sql` work for PostgreSQL and MySQL **without any external CLI tools installed**
-- SQLite uses CLI tools (`sqlite3`/`litecli`/`usql`) for all queries — this avoids the ~41MB `modernc.org/sqlite` dependency which is blocked by some Go module proxies
+- SQLite queries use CLI tools (`sqlite3`/`litecli`/`usql`) — all one-shot commands (`tables`, `describe`, `indexes`, `schema`, `count`, `find`, `exec`, `ping`, `size`) are fully supported
 - Cross-compilation works everywhere (pure Go, no CGO)
 - External CLIs (`litecli`, `pgcli`, `mycli`, `usql`) are needed for **interactive sessions** (`tinker db connect`)
+
+### Auto-Detected Environment Variables
+
+Tinker scans your `.env` files for database configuration. The following variables are detected automatically:
+
+| Variable | Inferred Type |
+|----------|--------------|
+| `DATABASE_URL`, `DB_URL` | Auto (by URL prefix) |
+| `POSTGRES_URL` | PostgreSQL |
+| `MYSQL_URL` | MySQL |
+| `MONGO_URL`, `MONGODB_URI` | MongoDB |
+| `DB_PATH`, `SQLITE_PATH`, `SQLITE_DB` | SQLite |
+| `DB_HOST`, `DB_CONNECTION` | Auto (by value) |
+
+File paths ending in `.db`, `.sqlite`, `.sqlite3` are automatically recognized as SQLite databases.
 
 ## Rich Output
 
@@ -466,7 +481,7 @@ Output:
 
 ## Prerequisites
 
-Tinker's one-shot DB commands work out of the box with built-in drivers. For **interactive sessions**, Tinker orchestrates existing tools. **`tinker init` auto-installs the ones you need** based on what's detected in your project. You can also manage them manually:
+Tinker's one-shot DB commands for PostgreSQL and MySQL work out of the box with built-in drivers. SQLite requires a CLI tool (`sqlite3`/`litecli`/`usql`) for all queries. For **interactive sessions**, Tinker orchestrates existing tools. **`tinker init` auto-installs the ones you need** based on what's detected in your project. You can also manage them manually:
 
 ```bash
 # Check which tools are installed
@@ -478,18 +493,17 @@ tinker deps install
 
 | Tool | Purpose | Required? | Manual Install |
 |------|---------|-----------|----------|
-| **usql** | Database REPL (fallback) | Interactive only | `go install github.com/xo/usql@latest` |
+| **sqlite3** | SQLite queries + REPL | SQLite projects | System package (`apt install sqlite3`, `brew install sqlite`) |
 | **litecli** | SQLite REPL (syntax highlighting) | Interactive only | `pip install litecli` |
 | **pgcli** | PostgreSQL REPL (syntax highlighting) | Interactive only | `pip install pgcli` |
 | **mycli** | MySQL REPL (syntax highlighting) | Interactive only | `pip install mycli` |
+| **usql** | Database REPL (universal fallback) | Interactive only | `go install github.com/xo/usql@latest` |
 | **httpie** | HTTP client | API feature | `pip install httpie` or `brew install httpie` |
 | **curlie** | HTTP client (alt) | API feature | `go install github.com/rs/curlie@latest` |
 | **evans** | gRPC REPL | gRPC feature | `go install github.com/ktr0731/evans@latest` |
 | **grpcurl** | gRPC client | gRPC feature | `go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest` |
 
 You don't need all of them — only install the tools for the features you use.
-
-> **Note:** If `go install` fails due to proxy rate limits, try `GOPROXY=direct go install <module>@latest`.
 
 ## Architecture
 
@@ -512,7 +526,7 @@ You don't need all of them — only install the tools for the features you use.
 ```
 
 **Design principles:**
-- **Native first, CLI fallback** — Built-in pure Go drivers for zero-dependency DB queries; external CLIs for interactive sessions
+- **Native first, CLI fallback** — Built-in pure Go drivers for PostgreSQL/MySQL queries; external CLIs for SQLite and interactive sessions
 - **Compose, don't reimplement** — Shell out to httpie/evans for interactive sessions, don't rewrite them
 - **Contract is declarative** — `tinker.toml`, not a Go interface
 - **Auto-detect first, configure second** — `tinker init` should work for 80% of cases
@@ -541,7 +555,7 @@ You don't need all of them — only install the tools for the features you use.
 
 ## Roadmap
 
-- [x] Native database drivers (SQLite, PostgreSQL, MySQL) — no external CLI needed for queries
+- [x] Native database drivers (PostgreSQL, MySQL) — no external CLI needed for queries
 - [x] `tinker db index` — show table indexes
 - [x] `tinker db ping` — test connectivity
 - [x] `tinker db size` — table row counts
